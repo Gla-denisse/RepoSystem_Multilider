@@ -11,16 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('users', function (Blueprint $table) {
+        Schema::create('rol_permiso', function (Blueprint $table) {
             $table->id();
-            $table->string('nombre');
-            $table->string('password');
-            $table->string('correo')->unique();
-            $table->boolean('estado')->default(true);
-            $table->timestamp('email_verified_at')->nullable();
-            
-            $table->rememberToken();
+            $table->foreignId('rol_id')->constrained('roles')->onDelete('cascade');
+            $table->foreignId('permiso_id')->constrained('permisos')->onDelete('cascade');
             $table->timestamps();
+
+            // Evitar duplicados
+            $table->unique(['rol_id', 'permiso_id']);
         });
     }
 
@@ -29,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
+        Schema::dropIfExists('rol_permiso');
     }
 };
