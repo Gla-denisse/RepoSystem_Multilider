@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\RolPermisoUsuario;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 
 class UserController extends Controller
 {
@@ -21,7 +22,14 @@ class UserController extends Controller
         $request->validate([
             'nombre' => 'required|string|max:255',
             'correo' => 'required|email|unique:users',
-            'password' => 'required|min:6'
+            'password' => [
+                'required',
+                Password::min(8) // Longitud mínima de 8
+                    ->mixedCase() // Al menos una mayúscula y una minúscula
+                    ->letters()   // Al menos una letra
+                    ->numbers()   // Al menos un número
+                    ->symbols()   // Al menos un símbolo (ej: !@#$%)
+            ]
         ]);
 
         $usuario = User::create([
@@ -44,16 +52,30 @@ class UserController extends Controller
     public function update(Request $request, $id) {
         $usuario = User::findOrFail($id);
 
+        // 1. Aplicamos la validación
         $request->validate([
             'nombre' => 'string|max:255',
             'correo' => 'email|unique:users,correo,' . $usuario->id,
+            'password' => [
+                'nullable', // <-- CLAVE: Permite que el campo venga vacío si no quieren cambiar la clave
+                Password::min(8) // Longitud mínima de 8
+                    ->mixedCase() // Al menos una mayúscula y una minúscula
+                    ->letters()   // Al menos una letra
+                    ->numbers()   // Al menos un número
+                    ->symbols()   // Al menos un símbolo (ej: !@#$%)
+            ],
         ]);
 
-        if($request->has('password')) {
-            $request->merge(['password' => Hash::make($request->password)]);
+        // 2. Extraemos todos los datos excepto el password para procesarlo por separado
+        $data = $request->except('password');
+
+        // 3. Verificamos si realmente enviaron una contraseña (filled asegura que no esté vacía ni nula)
+        if($request->filled('password')) {
+            $data['password'] = Hash::make($request->password);
         }
 
-        $usuario->update($request->all());
+        // 4. Actualizamos el usuario
+        $usuario->update($data);
 
         return response()->json(['message' => 'Usuario actualizado', 'data' => $usuario], 200);
     }
