@@ -46,10 +46,15 @@ class RolController extends Controller
 
     public function destroy($id) {
         $rol = Rol::findOrFail($id);
-        $rol->estado = false; // Desactivación lógica
+        
+        // Invertimos el estado (Si era true, pasa a false. Si era false, pasa a true)
+        $rol->estado = !$rol->estado; 
         $rol->save();
         
-        return response()->json(['message' => 'Rol desactivado'], 200);
+        // Mensaje dinámico para el frontend
+        $mensaje = $rol->estado ? 'Rol activado correctamente' : 'Rol desactivado correctamente';
+        
+        return response()->json(['message' => $mensaje, 'estado' => $rol->estado], 200);
     }
 
     public function getPermisos($id) {

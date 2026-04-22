@@ -13,12 +13,17 @@ class PermisoController extends Controller
     }
 
     public function store(Request $request) {
-        $request->validate([
-            'nombre' => 'required|string|max:100',
-            'descripcion' => 'nullable|string|max:255'
+        // 1. Validamos y guardamos en una variable segura
+        $validatedData = $request->validate([
+            // unique:permisos,nombre -> Evita duplicados en la tabla permisos
+            'nombre' => 'required|string|max:100|unique:permisos,nombre',
+            'descripcion' => 'nullable|string|max:255',
+            'estado' => 'nullable|boolean'
         ]);
 
-        $permiso = Permiso::create($request->all());
+        // 2. Creamos usando SOLO los datos validados
+        $permiso = Permiso::create($validatedData);
+        
         return response()->json(['message' => 'Permiso creado', 'data' => $permiso], 201);
     }
 
@@ -28,7 +33,17 @@ class PermisoController extends Controller
 
     public function update(Request $request, $id) {
         $permiso = Permiso::findOrFail($id);
-        $permiso->update($request->all());
+
+        // 1. Validamos (ignorando el ID actual para que deje guardar si solo se editó la descripción)
+        $validatedData = $request->validate([
+            'nombre' => 'required|string|max:100|unique:permisos,nombre,' . $permiso->id,
+            'descripcion' => 'nullable|string|max:255',
+            'estado' => 'nullable|boolean'
+        ]);
+
+        // 2. Actualizamos usando SOLO los datos validados
+        $permiso->update($validatedData);
+        
         return response()->json(['message' => 'Permiso actualizado', 'data' => $permiso], 200);
     }
 

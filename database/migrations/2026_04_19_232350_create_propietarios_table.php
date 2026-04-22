@@ -17,6 +17,8 @@ return new class extends Migration
             $table->string('telefono', 50)->nullable();
             $table->string('correo')->nullable();
             $table->string('direccion')->nullable();
+            // NUEVO: Agregamos el estado para poder Activar/Desactivar propietarios
+            $table->boolean('estado')->default(true);
             $table->timestamps();
         });
     }

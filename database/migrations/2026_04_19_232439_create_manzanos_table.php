@@ -12,6 +12,8 @@ return new class extends Migration
             $table->id();
             $table->string('codigo', 50)->unique(); // Ej: MZ-01, MZ-02
             $table->string('descripcion')->nullable();
+            // NUEVO: Agregamos el estado para poder Activar/Desactivar manzanos
+            $table->boolean('estado')->default(true);
             $table->timestamps();
         });
     }

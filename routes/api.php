@@ -9,6 +9,11 @@ use App\Http\Controllers\Api\RolPermisoController;
 use App\Http\Controllers\Api\RolPermisoUsuarioController;
 use App\Http\Controllers\Api\AuthController;
 
+use App\Http\Controllers\Api\PropietarioController;
+use App\Http\Controllers\Api\ManzanoController;
+use App\Http\Controllers\Api\UbicacionController;
+use App\Http\Controllers\Api\PropiedadController;
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -40,4 +45,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('permisos', \App\Http\Controllers\Api\PermisoController::class);
     
     Route::apiResource('asignar-permisos', \App\Http\Controllers\Api\RolPermisoController::class);
+
+    Route::apiResource('propietarios', PropietarioController::class);
+    Route::apiResource('manzanos', ManzanoController::class);
+    Route::apiResource('ubicaciones', UbicacionController::class);
+    Route::apiResource('propiedades', PropiedadController::class);
 });

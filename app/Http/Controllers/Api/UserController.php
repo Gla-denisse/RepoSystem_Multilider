@@ -83,10 +83,15 @@ class UserController extends Controller
     // Eliminar o desactivar un usuario
     public function destroy($id) {
         $usuario = User::findOrFail($id);
-        $usuario->estado = false; // Soft delete lógico
+        
+        // Invertimos el estado lógico (toggle)
+        $usuario->estado = !$usuario->estado; 
         $usuario->save();
 
-        return response()->json(['message' => 'Usuario desactivado'], 200);
+        // Generamos el mensaje dinámico
+        $mensaje = $usuario->estado ? 'Usuario activado correctamente' : 'Usuario desactivado correctamente';
+
+        return response()->json(['message' => $mensaje, 'estado' => $usuario->estado], 200);
     }
 
     public function getAsignaciones($id) {

@@ -19,15 +19,20 @@ class PermisoSeeder extends Seeder
         
         $rolAsesor = Rol::firstOrCreate(
             ['nombre' => 'Asesor de Ventas'], 
-            ['descripcion' => 'Acceso limitado a clientes y consultas']
+            ['descripcion' => 'Acceso operativo a clientes y propiedades']
         );
 
-        // 2. Definimos los permisos exactos del sistema hasta ahora
+        // 2. UN SOLO PERMISO POR MÓDULO (Estandarizado a "acceso_")
         $permisos = [
-            ['nombre' => 'ver_usuarios', 'descripcion' => 'Ver el listado de usuarios'],
-            ['nombre' => 'ver_roles', 'descripcion' => 'Ver el listado de roles'],
-            ['nombre' => 'ver_permisos', 'descripcion' => 'Ver el listado de permisos'],
-            ['nombre' => 'crear_usuarios', 'descripcion' => 'Permite crear nuevos usuarios'],
+            // Módulo de Seguridad
+            ['nombre' => 'acceso_usuarios', 'descripcion' => 'Acceso completo al módulo de Usuarios'],
+            ['nombre' => 'acceso_roles', 'descripcion' => 'Acceso completo al módulo de Roles'],
+            ['nombre' => 'acceso_permisos', 'descripcion' => 'Acceso completo al módulo de Permisos'],
+            
+            // Módulo de Gestión Operativa
+            ['nombre' => 'acceso_propietarios', 'descripcion' => 'Acceso completo al módulo de Propietarios'],
+            ['nombre' => 'acceso_manzanos', 'descripcion' => 'Acceso completo al módulo de Manzanos'],
+            ['nombre' => 'acceso_propiedades', 'descripcion' => 'Acceso completo al módulo de Propiedades'],
         ];
 
         // 3. Insertamos los permisos en la base de datos
@@ -35,7 +40,7 @@ class PermisoSeeder extends Seeder
             Permiso::firstOrCreate(['nombre' => $p['nombre']], $p);
         }
 
-        // 4. Asignar TODOS los permisos al "Administrador"
+        // 4. Asignar TODOS los permisos al "Administrador" (ID 1)
         $todosLosPermisos = Permiso::all();
         foreach ($todosLosPermisos as $permiso) {
             RolPermiso::firstOrCreate([
@@ -45,13 +50,22 @@ class PermisoSeeder extends Seeder
         }
 
         // 5. Asignar permisos específicos al "Asesor de Ventas"
-        // Le daremos solo acceso a ver usuarios para que puedan entrar al menú
-        $permisoVerUsuarios = Permiso::where('nombre', 'ver_usuarios')->first();
-        if ($permisoVerUsuarios) {
-            RolPermiso::firstOrCreate([
-                'rol_id' => $rolAsesor->id,
-                'permiso_id' => $permisoVerUsuarios->id
-            ]);
+        // Le daremos acceso a usuarios y a todo el módulo operativo
+        $permisosAsesor = [
+            'acceso_usuarios',
+            'acceso_propietarios',
+            'acceso_manzanos',
+            'acceso_propiedades'
+        ];
+
+        foreach ($permisosAsesor as $nombrePermiso) {
+            $permiso = Permiso::where('nombre', $nombrePermiso)->first();
+            if ($permiso) {
+                RolPermiso::firstOrCreate([
+                    'rol_id' => $rolAsesor->id,
+                    'permiso_id' => $permiso->id
+                ]);
+            }
         }
     }
 }

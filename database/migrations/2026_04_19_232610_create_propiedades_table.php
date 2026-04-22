@@ -35,6 +35,7 @@ return new class extends Migration
 
             // Estado de la propiedad
             $table->string('estado', 50)->default('Disponible'); // Disponible, Vendido, Reservado
+            $table->boolean('activo')->default(true);// para activo/desactivado
 
             $table->timestamps();
         });
