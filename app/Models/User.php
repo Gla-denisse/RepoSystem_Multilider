@@ -48,4 +48,15 @@ class User extends Authenticatable
     public function rolesPermisos() {
         return $this->hasMany(RolPermisoUsuario::class, 'user_id');
     }
+
+    public function asignaciones()
+    {
+
+        return $this->belongsToMany(
+            RolPermiso::class, 
+            'rol_permiso_usuario',
+            'user_id', 
+            'rol_permiso_id'
+        );
+    }
 }

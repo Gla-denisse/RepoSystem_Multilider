@@ -19,8 +19,8 @@ class UbicacionController extends Controller
             'referencia' => 'nullable|string|max:255',
             // Validamos que si envían url_maps, tenga formato de enlace válido
             'url_maps' => 'nullable|url', 
-            'longitud' => 'nullable|string|max:100',
-            'latitud' => 'nullable|string|max:100'
+            'longitud'   => 'nullable|numeric', 
+            'latitud'    => 'nullable|numeric'
         ]);
 
         // 🛡️ LIMPIEZA DE SEGURIDAD: 
@@ -40,8 +40,8 @@ class UbicacionController extends Controller
         $validatedData = $request->validate([
             'referencia' => 'nullable|string|max:255',
             'url_maps' => 'nullable|url',
-            'longitud' => 'nullable|string|max:100',
-            'latitud' => 'nullable|string|max:100'
+            'longitud'   => 'nullable|numeric', 
+            'latitud'    => 'nullable|numeric'
         ]);
 
         // 🛡️ LIMPIEZA DE SEGURIDAD: 

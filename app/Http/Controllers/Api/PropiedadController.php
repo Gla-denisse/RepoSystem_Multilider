@@ -63,6 +63,7 @@ class PropiedadController extends Controller
     }
 
     // 4. Actualizar
+    // 4. Actualizar
     public function update(Request $request, $id) {
         $propiedad = Propiedad::findOrFail($id);
 
@@ -76,6 +77,10 @@ class PropiedadController extends Controller
             'direccion'      => 'nullable|string|max:255',
             'nro_lote'       => 'nullable|string|max:50',
             'superficie_m2'  => 'required|numeric|min:0',
+            'colinda_norte'  => 'nullable|string|max:255',
+            'colinda_sur'    => 'nullable|string|max:255',
+            'colinda_este'   => 'nullable|string|max:255',
+            'colinda_oeste'  => 'nullable|string|max:255',
             'estado'         => 'nullable|string|max:50',
             'activo'         => 'nullable|boolean'
         ]);

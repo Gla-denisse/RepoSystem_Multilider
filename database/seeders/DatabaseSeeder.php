@@ -61,5 +61,9 @@ class DatabaseSeeder extends Seeder
             RolPermisoUsuario::firstOrCreate(['user_id' => $asesor1->id, 'rol_permiso_id' => $combinacion->id]);
             RolPermisoUsuario::firstOrCreate(['user_id' => $asesor2->id, 'rol_permiso_id' => $combinacion->id]);
         }
+
+        $this->call([
+            DatosPruebaSeeder::class,
+        ]);
     }
 }

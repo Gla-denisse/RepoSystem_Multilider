@@ -13,6 +13,9 @@ use App\Http\Controllers\Api\PropietarioController;
 use App\Http\Controllers\Api\ManzanoController;
 use App\Http\Controllers\Api\UbicacionController;
 use App\Http\Controllers\Api\PropiedadController;
+use App\Http\Controllers\Api\AsesorController;
+use App\Http\Controllers\Api\ClienteController;
+use App\Http\Controllers\Api\NotaVentaController;
 
 /*
 |--------------------------------------------------------------------------
@@ -50,4 +53,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('manzanos', ManzanoController::class);
     Route::apiResource('ubicaciones', UbicacionController::class);
     Route::apiResource('propiedades', PropiedadController::class);
+    Route::apiResource('asesores', AsesorController::class);
+    Route::apiResource('clientes', ClienteController::class);
+
+    Route::apiResource('ventas', NotaVentaController::class)->except(['destroy', 'update']);
+    Route::put('ventas/{id}/anular', [NotaVentaController::class, 'anular']);
 });

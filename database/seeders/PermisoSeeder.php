@@ -22,6 +22,11 @@ class PermisoSeeder extends Seeder
             ['descripcion' => 'Acceso operativo a clientes y propiedades']
         );
 
+        $rolCliente = Rol::firstOrCreate(
+            ['nombre' => 'Cliente'], 
+            ['descripcion' => 'Acceso exclusivo al portal del cliente para ver sus lotes y pagos']
+        );
+
         // 2. UN SOLO PERMISO POR MÓDULO (Estandarizado a "acceso_")
         $permisos = [
             // Módulo de Seguridad
@@ -33,6 +38,12 @@ class PermisoSeeder extends Seeder
             ['nombre' => 'acceso_propietarios', 'descripcion' => 'Acceso completo al módulo de Propietarios'],
             ['nombre' => 'acceso_manzanos', 'descripcion' => 'Acceso completo al módulo de Manzanos'],
             ['nombre' => 'acceso_propiedades', 'descripcion' => 'Acceso completo al módulo de Propiedades'],
+
+            // Módulo de Gestión Comercial
+            ['nombre' => 'acceso_asesores', 'descripcion' => 'Acceso completo al módulo de Asesores de Ventas'],
+            ['nombre' => 'acceso_clientes', 'descripcion' => 'Acceso completo al módulo de Clientes'],
+            ['nombre' => 'acceso_ventas', 'descripcion' => 'Acceso para registrar y anular notas de ventas y planes de pago'],
+            ['nombre' => 'acceso_historial_ventas', 'descripcion' => 'Acceso para ver y filtrar el historial de ventas registradas'],
         ];
 
         // 3. Insertamos los permisos en la base de datos
@@ -55,7 +66,10 @@ class PermisoSeeder extends Seeder
             'acceso_usuarios',
             'acceso_propietarios',
             'acceso_manzanos',
-            'acceso_propiedades'
+            'acceso_propiedades',
+            'acceso_clientes',
+            'acceso_ventas',
+            'acceso_historial_ventas'
         ];
 
         foreach ($permisosAsesor as $nombrePermiso) {
