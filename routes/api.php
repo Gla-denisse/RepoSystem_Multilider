@@ -16,6 +16,9 @@ use App\Http\Controllers\Api\PropiedadController;
 use App\Http\Controllers\Api\AsesorController;
 use App\Http\Controllers\Api\ClienteController;
 use App\Http\Controllers\Api\NotaVentaController;
+use App\Http\Controllers\Api\CiudadController;
+use App\Http\Controllers\Api\ZonaController;
+use App\Http\Controllers\Api\CaracteristicaController;
 
 /*
 |--------------------------------------------------------------------------
@@ -37,17 +40,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
 
-    Route::apiResource('usuarios', \App\Http\Controllers\Api\UserController::class);
-    Route::get('usuarios/{id}/asignaciones', [\App\Http\Controllers\Api\UserController::class, 'getAsignaciones']);
-    Route::post('usuarios/{id}/asignaciones/sync', [\App\Http\Controllers\Api\UserController::class, 'syncAsignaciones']);
+    Route::apiResource('usuarios', UserController::class);
+    Route::get('usuarios/{id}/asignaciones', [UserController::class, 'getAsignaciones']);
+    Route::post('usuarios/{id}/asignaciones/sync', [UserController::class, 'syncAsignaciones']);
 
-    Route::apiResource('roles', \App\Http\Controllers\Api\RolController::class);
-    Route::get('roles/{id}/permisos', [\App\Http\Controllers\Api\RolController::class, 'getPermisos']);
-    Route::post('roles/{id}/permisos/sync', [\App\Http\Controllers\Api\RolController::class, 'syncPermisos']);
+    Route::apiResource('roles', RolController::class);
+    Route::get('roles/{id}/permisos', [RolController::class, 'getPermisos']);
+    Route::post('roles/{id}/permisos/sync', [RolController::class, 'syncPermisos']);
 
-    Route::apiResource('permisos', \App\Http\Controllers\Api\PermisoController::class);
+    Route::apiResource('permisos', PermisoController::class);
     
-    Route::apiResource('asignar-permisos', \App\Http\Controllers\Api\RolPermisoController::class);
+    Route::apiResource('asignar-permisos', RolPermisoController::class);
 
     Route::apiResource('propietarios', PropietarioController::class);
     Route::apiResource('manzanos', ManzanoController::class);
@@ -55,7 +58,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('propiedades', PropiedadController::class);
     Route::apiResource('asesores', AsesorController::class);
     Route::apiResource('clientes', ClienteController::class);
-
+    Route::apiResource('ciudades', CiudadController::class);
+    Route::apiResource('zonas', ZonaController::class);
+    Route::apiResource('caracteristicas', CaracteristicaController::class);
+    
     Route::apiResource('ventas', NotaVentaController::class)->except(['destroy', 'update']);
     Route::put('ventas/{id}/anular', [NotaVentaController::class, 'anular']);
+
 });
