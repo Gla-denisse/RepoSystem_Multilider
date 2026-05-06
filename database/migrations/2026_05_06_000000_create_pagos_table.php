@@ -20,7 +20,7 @@ return new class extends Migration
 
             // Atributos solicitados
             $table->enum('concepto_pago', ['CUOTA_INICIAL', 'CUOTA', 'VENTA_CONTADO', 'OTRO']);
-            $table->date('fecha_pago');
+            $table->date('fecha_pago')->nullable();
             $table->decimal('monto', 12, 2);
 
             // Metadata

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
 use App\Models\CuentaBancaria;
 use App\Models\MiEmpresa;
 use Illuminate\Http\Request;

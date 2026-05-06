@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\LandingController;
 use App\Http\Controllers\Api\PagoController;
 use App\Http\Controllers\Api\MetodoPagoController;
 use App\Http\Controllers\Api\CuentaBancariaController;
+use App\Http\Controllers\Api\MetodoPagoCuentaDefaultController;
 
 /*
 |--------------------------------------------------------------------------
@@ -74,6 +75,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('caracteristicas', CaracteristicaController::class);
     Route::apiResource('metodos-pago', MetodoPagoController::class);
     Route::apiResource('cuentas-bancarias', CuentaBancariaController::class);
+    Route::apiResource('mapeo-metodos-cuentas', MetodoPagoCuentaDefaultController::class);
+    Route::get('mapeo-metodos-cuentas/obtener-cuenta/{metodoId}', [MetodoPagoCuentaDefaultController::class, 'obtenerCuentaPorMetodo']);
 
     // Configuración de Empresa
     Route::post('empresa', [LandingController::class, 'updateEmpresa'])->middleware('permission:acceso_empresa');
@@ -82,11 +85,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('ventas/{id}/anular', [NotaVentaController::class, 'anular']);
 
     // Gestión de Pagos
-    Route::apiResource('pagos', PagoController::class);
-    Route::get('pagos/venta/{notaVentaId}/resumen', [PagoController::class, 'pagosPorVenta']);
-    Route::get('pagos/cliente/{clienteId}/resumen', [PagoController::class, 'resumenPorCliente']);
-    Route::put('pagos/{id}/cancelar', [PagoController::class, 'cancelar']);
-    Route::post('pagos/reportes/periodo', [PagoController::class, 'reportePeriodo']);
+    Route::middleware('permission:acceso_pagos')->group(function () {
+        Route::post('pagos/bulk', [PagoController::class, 'storeBulk']);
+        Route::apiResource('pagos', PagoController::class);
+        Route::get('pagos/venta/{notaVentaId}/resumen', [PagoController::class, 'pagosPorVenta']);
+        Route::get('pagos/cliente/{clienteId}/resumen', [PagoController::class, 'resumenPorCliente']);
+        Route::put('pagos/{id}/cancelar', [PagoController::class, 'cancelar']);
+        // Route::post('pagos/reportes/periodo', [PagoController::class, 'reportePeriodo']);
+        Route::get('pagos/pendientes/listar', [PagoController::class, 'pagosPendientes']);
+        Route::post('pagos/{id}/procesar', [PagoController::class, 'procesarPagoPendiente']);
+    });
+    
+    // Ruta de reportes podría tener un permiso más específico si se desea, 
+    // pero por ahora lo dejamos bajo acceso_pagos o libre para admin
+    Route::post('pagos/reportes/periodo', [PagoController::class, 'reportePeriodo'])->middleware('permission:acceso_reportes_pagos');
 
 });
 

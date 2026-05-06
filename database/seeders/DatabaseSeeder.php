@@ -68,6 +68,7 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             DatosPruebaSeeder::class,
+            MapeoMetodoPagoCuentaSeeder::class,
         ]);
     }
 }

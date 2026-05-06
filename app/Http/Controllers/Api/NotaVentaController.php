@@ -52,7 +52,6 @@ class NotaVentaController extends Controller
             'monto_total'    => 'required|numeric|min:0',
             'monto_comision' => 'nullable|numeric|min:0',
             'tipo_venta'     => 'required|in:CONTADO,CREDITO',
-            'metodo_pago_id' => 'required|exists:metodos_pago,id',
 
             // Contado
             'descuento'      => 'nullable|numeric|min:0',
@@ -80,28 +79,30 @@ class NotaVentaController extends Controller
 
             $propiedad->update(['estado' => 'Vendido']);
 
-            // 2. 🌟 REGISTRAR PAGO AUTOMÁTICAMENTE
+            // 2. 🌟 REGISTRAR PAGO COMO PENDIENTE DE PAGO
             if ($venta->tipo_venta === 'CONTADO') {
                 Pago::create([
                     'nota_venta_id'  => $venta->id,
                     'cuota_id'       => null,
-                    'metodo_pago_id' => $validatedData['metodo_pago_id'],
+                    'metodo_pago_id' => null,
+                    'cuenta_id'      => null,
                     'concepto_pago'  => 'VENTA_CONTADO',
-                    'fecha_pago'     => $validatedData['fecha'],
+                    'fecha_pago'     => null,
                     'monto'          => $validatedData['monto_liquido'],
-                    'estado'         => 'Registrado',
-                    'observaciones'  => 'Pago automático por venta al contado'
+                    'estado'         => 'PENDIENTE_PAGO',
+                    'observaciones'  => 'Pago pendiente de registrar'
                 ]);
             } elseif ($venta->tipo_venta === 'CREDITO') {
                 Pago::create([
                     'nota_venta_id'  => $venta->id,
                     'cuota_id'       => null,
-                    'metodo_pago_id' => $validatedData['metodo_pago_id'],
+                    'metodo_pago_id' => null,
+                    'cuenta_id'      => null,
                     'concepto_pago'  => 'CUOTA_INICIAL',
-                    'fecha_pago'     => $validatedData['fecha'],
+                    'fecha_pago'     => null,
                     'monto'          => $validatedData['cuota_inicial'],
-                    'estado'         => 'Registrado',
-                    'observaciones'  => 'Pago automático de cuota inicial'
+                    'estado'         => 'PENDIENTE_PAGO',
+                    'observaciones'  => 'Cuota inicial pendiente de pago'
                 ]);
             }
 

@@ -47,6 +47,8 @@ class PermisoSeeder extends Seeder
             ['nombre' => 'acceso_clientes', 'descripcion' => 'Acceso completo al módulo de Clientes'],
             ['nombre' => 'acceso_ventas', 'descripcion' => 'Acceso para registrar y anular notas de ventas y planes de pago'],
             ['nombre' => 'acceso_historial_ventas', 'descripcion' => 'Acceso para ver y filtrar el historial de ventas registradas'],
+            ['nombre' => 'acceso_pagos', 'descripcion' => 'Acceso completo al módulo de Pagos'],
+            ['nombre' => 'acceso_reportes_pagos', 'descripcion' => 'Acceso a los reportes de ingresos por pagos'],
 
             // Módulo de Configuración de Landing
             ['nombre' => 'acceso_empresa', 'descripcion' => 'Acceso completo para gestionar la información y branding de la empresa'],
@@ -75,6 +77,7 @@ class PermisoSeeder extends Seeder
             'acceso_clientes',
             'acceso_ventas',
             'acceso_historial_ventas',
+            'acceso_pagos',
             'acceso_ciudades',
             'acceso_zonas',
             'acceso_caracteristicas',
