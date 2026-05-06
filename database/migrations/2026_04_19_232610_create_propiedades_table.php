@@ -10,33 +10,41 @@ return new class extends Migration
     {
         Schema::create('propiedades', function (Blueprint $table) {
             $table->id();
-            
-            // Relaciones (Llaves Foráneas)
-            $table->foreignId('propietario_id')->constrained('propietarios')->restrictOnDelete();
-            $table->foreignId('manzano_id')->constrained('manzanos')->restrictOnDelete();
-            
-            // Relación 1 a 1 (Una ubicación pertenece a una sola propiedad)
+            // Relaciones
+            $table->foreignId('propietario_id')->constrained('propietarios');
+            $table->foreignId('zona_id')->constrained('zonas'); // 🌟 Conectado a la nueva tabla Zonas
             $table->foreignId('ubicacion_id')->nullable()->constrained('ubicaciones')->nullOnDelete();
-            $table->unique('ubicacion_id'); 
-
-            // Datos de la Propiedad
-            $table->string('tipo', 100); // Lote, Casa, Terreno, etc.
-            $table->string('codigo', 100)->unique();
+            
+            // Datos Identificativos
+            $table->string('codigo')->unique(); // Ej: VILLA-01
+            $table->string('tipo'); // Casa, Lote, Local, etc.
+            
+            // Datos Económicos
             $table->decimal('precio_venta', 12, 2);
-            $table->string('direccion')->nullable();
-            $table->string('nro_lote', 50)->nullable();
-            $table->decimal('superficie_m2', 10, 2);
+            $table->enum('moneda', ['USD', 'BOB'])->default('USD');
+            
+            // Medidas y Superficies
+            $table->decimal('superficie_m2', 10, 2); // Terreno total
+            $table->decimal('superficie_construida_m2', 10, 2)->nullable(); // Solo para casas
+            $table->decimal('frente_mts', 8, 2)->nullable();
+            $table->decimal('fondo_mts', 8, 2)->nullable();
+            
+            // Características Físicas
+            $table->integer('habitaciones')->nullable();
+            $table->integer('banos')->nullable();
+            $table->boolean('es_esquina')->default(false);
 
-            // Colindancias
+            // Ubicación y Colindancias
+            $table->string('direccion')->nullable();
+            $table->string('nro_lote')->nullable();
             $table->string('colinda_norte')->nullable();
             $table->string('colinda_sur')->nullable();
             $table->string('colinda_este')->nullable();
             $table->string('colinda_oeste')->nullable();
-
-            // Estado de la propiedad
-            $table->string('estado', 50)->default('Disponible'); // Disponible, Vendido, Reservado
-            $table->boolean('activo')->default(true);// para activo/desactivado
-
+            
+            // Estados del Sistema
+            $table->string('estado')->default('Disponible'); // Disponible, Vendido, Reservado
+            $table->boolean('activo')->default(true);
             $table->timestamps();
         });
     }

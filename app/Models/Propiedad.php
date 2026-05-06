@@ -12,38 +12,38 @@ class Propiedad extends Model
     protected $table = 'propiedades';
 
     protected $fillable = [
-        'propietario_id',
-        'manzano_id',
-        'ubicacion_id',
-        'tipo',
-        'codigo',
-        'precio_venta',
-        'direccion',
-        'nro_lote',
-        'superficie_m2',
-        'colinda_norte',
-        'colinda_sur',
-        'colinda_este',
-        'colinda_oeste',
-        'estado',
-        'activo'
+        'propietario_id', 'zona_id', 'ubicacion_id', 'codigo', 'tipo',
+        'precio_venta', 'moneda', 'superficie_m2', 'superficie_construida_m2',
+        'frente_mts', 'fondo_mts', 'habitaciones', 'banos', 'es_esquina',
+        'direccion', 'nro_lote', 'colinda_norte', 'colinda_sur', 
+        'colinda_este', 'colinda_oeste', 'estado', 'activo', 'es_destacado'
     ];
 
-    // Relaciones: Muchas propiedades pertenecen a un Propietario
+    // Relación: Muchas propiedades pertenecen a una Zona
+    public function zona()
+    {
+        return $this->belongsTo(Zona::class, 'zona_id');
+    }
+
+    // Relación: Muchas propiedades pertenecen a un Propietario
     public function propietario()
     {
         return $this->belongsTo(Propietario::class, 'propietario_id');
     }
 
-    // Relaciones: Muchas propiedades pertenecen a un Manzano
-    public function manzano()
-    {
-        return $this->belongsTo(Manzano::class, 'manzano_id');
-    }
-
-    // Relación 1 a 1: Una propiedad tiene una ubicación
+    // Relación 1 a 1 con Ubicación (GPS)
     public function ubicacion()
     {
         return $this->belongsTo(Ubicacion::class, 'ubicacion_id');
+    }
+
+    public function caracteristicas()
+    {
+        return $this->belongsToMany(Caracteristica::class, 'caracteristica_propiedad');
+    }
+
+    public function imagenes()
+    {
+        return $this->hasMany(ImagenPropiedad::class, 'propiedad_id');
     }
 }

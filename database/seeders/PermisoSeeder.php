@@ -36,14 +36,20 @@ class PermisoSeeder extends Seeder
             
             // Módulo de Gestión Operativa
             ['nombre' => 'acceso_propietarios', 'descripcion' => 'Acceso completo al módulo de Propietarios'],
-            ['nombre' => 'acceso_manzanos', 'descripcion' => 'Acceso completo al módulo de Manzanos'],
             ['nombre' => 'acceso_propiedades', 'descripcion' => 'Acceso completo al módulo de Propiedades'],
+
+            ['nombre' => 'acceso_ciudades', 'descripcion' => 'Acceso completo al módulo de Ciudades'],
+            ['nombre' => 'acceso_zonas', 'descripcion' => 'Acceso completo al módulo de Zonas'],
+            ['nombre' => 'acceso_caracteristicas', 'descripcion' => 'Acceso completo al módulo de Características'],
 
             // Módulo de Gestión Comercial
             ['nombre' => 'acceso_asesores', 'descripcion' => 'Acceso completo al módulo de Asesores de Ventas'],
             ['nombre' => 'acceso_clientes', 'descripcion' => 'Acceso completo al módulo de Clientes'],
             ['nombre' => 'acceso_ventas', 'descripcion' => 'Acceso para registrar y anular notas de ventas y planes de pago'],
             ['nombre' => 'acceso_historial_ventas', 'descripcion' => 'Acceso para ver y filtrar el historial de ventas registradas'],
+
+            // Módulo de Configuración de Landing
+            ['nombre' => 'acceso_empresa', 'descripcion' => 'Acceso completo para gestionar la información y branding de la empresa'],
         ];
 
         // 3. Insertamos los permisos en la base de datos
@@ -65,11 +71,13 @@ class PermisoSeeder extends Seeder
         $permisosAsesor = [
             'acceso_usuarios',
             'acceso_propietarios',
-            'acceso_manzanos',
             'acceso_propiedades',
             'acceso_clientes',
             'acceso_ventas',
-            'acceso_historial_ventas'
+            'acceso_historial_ventas',
+            'acceso_ciudades',
+            'acceso_zonas',
+            'acceso_caracteristicas',
         ];
 
         foreach ($permisosAsesor as $nombrePermiso) {

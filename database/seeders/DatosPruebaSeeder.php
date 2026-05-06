@@ -11,7 +11,9 @@ use App\Models\RolPermisoUsuario;
 use App\Models\Asesor;
 use App\Models\Cliente;
 use App\Models\Propietario;
-use App\Models\Manzano;
+use App\Models\Ciudad;
+use App\Models\Zona;
+use App\Models\Caracteristica;
 use App\Models\Ubicacion;
 use App\Models\Propiedad;
 
@@ -20,7 +22,7 @@ class DatosPruebaSeeder extends Seeder
     public function run(): void
     {
         // ==========================================
-        // 1. POBLAR ASESORES (Vinculados a los usuarios del DatabaseSeeder)
+        // 1. POBLAR ASESORES (Vinculados a los usuarios)
         // ==========================================
         $carlos = User::where('correo', 'carlos@tecnoweb.edu')->first();
         if ($carlos) {
@@ -51,7 +53,7 @@ class DatosPruebaSeeder extends Seeder
         }
 
         // ==========================================
-        // 2. POBLAR CLIENTES (Con la regla de Contraseña = CI)
+        // 2. POBLAR CLIENTES
         // ==========================================
         $rolCliente = Rol::where('nombre', 'Cliente')->first();
         $permisosCliente = RolPermiso::where('rol_id', $rolCliente->id)->get();
@@ -62,18 +64,15 @@ class DatosPruebaSeeder extends Seeder
         ];
 
         foreach ($clientesDemo as $c) {
-            // A) Crear el Usuario (Pass = CI)
             $userCliente = User::firstOrCreate(
                 ['correo' => $c['correo']],
                 ['nombre' => $c['nombre'], 'password' => Hash::make($c['ci']), 'estado' => true]
             );
 
-            // B) Asignar Permisos del Rol Cliente
             foreach ($permisosCliente as $permiso) {
                 RolPermisoUsuario::firstOrCreate(['user_id' => $userCliente->id, 'rol_permiso_id' => $permiso->id]);
             }
 
-            // C) Crear el Perfil de Cliente
             Cliente::firstOrCreate(
                 ['ci' => $c['ci']],
                 [
@@ -110,60 +109,89 @@ class DatosPruebaSeeder extends Seeder
         );
 
         // ==========================================
-        // 4. POBLAR MANZANOS
+        // 4. NUEVO: POBLAR CIUDADES, ZONAS Y CARACTERÍSTICAS
         // ==========================================
-        $manzanos = [
-            ['codigo' => 'MZ-A', 'descripcion' => 'Manzano Fase 1 - Frente a la plaza principal'],
-            ['codigo' => 'MZ-B', 'descripcion' => 'Manzano Fase 1 - Zona Este'],
-            ['codigo' => 'MZ-C', 'descripcion' => 'Manzano Fase 2 - Cerca de la avenida']
-        ];
+        $ciudadWarnes = Ciudad::firstOrCreate(['nombre' => 'Warnes'], ['departamento' => 'Santa Cruz']);
+        $ciudadMontero = Ciudad::firstOrCreate(['nombre' => 'Montero'], ['departamento' => 'Santa Cruz']);
 
-        foreach ($manzanos as $mz) {
-            Manzano::firstOrCreate(['codigo' => $mz['codigo']], ['descripcion' => $mz['descripcion'], 'estado' => true]);
-        }
+        $zonaSatelite = Zona::firstOrCreate(['nombre' => 'Zona Juan Pablo II, Satélite Norte'], ['ciudad_id' => $ciudadWarnes->id]);
+        $zonaEsterita = Zona::firstOrCreate(['nombre' => 'Urb. Villa Esterita'], ['ciudad_id' => $ciudadMontero->id]);
+
+        $cGas = Caracteristica::firstOrCreate(['nombre' => 'Gas Domiciliario'], ['tipo' => 'Servicios']);
+        $cTransporte = Caracteristica::firstOrCreate(['nombre' => 'Transporte Público Cercano'], ['tipo' => 'Entorno']);
+        $cColegio = Caracteristica::firstOrCreate(['nombre' => 'Colegios Cercanos'], ['tipo' => 'Entorno']);
+        $cAreasVerdes = Caracteristica::firstOrCreate(['nombre' => 'Áreas Verdes'], ['tipo' => 'Entorno']);
+        $cLavanderia = Caracteristica::firstOrCreate(['nombre' => 'Área de Lavandería'], ['tipo' => 'Interna']);
 
         // ==========================================
-        // 5. POBLAR PROPIEDADES (Con Ubicaciones simuladas)
+        // 5. POBLAR PROPIEDADES (Con nueva estructura)
         // ==========================================
-        $manzanoA = Manzano::where('codigo', 'MZ-A')->first();
-        $manzanoB = Manzano::where('codigo', 'MZ-B')->first();
-
-        // Propiedad 1
-        $ubi1 = Ubicacion::create([
-            'referencia' => 'Esquina principal, frente al parque',
-            'url_maps' => 'https://www.google.com/maps/search/?api=1&query=$-17.338062,-63.245930',
-            'latitud' => '-17.338062', 'longitud' => '-63.245930'
-        ]);
-
-        Propiedad::firstOrCreate(
-            ['codigo' => 'LOTE-A01'],
+        
+        // Propiedad 1: Casa en Warnes (Con Ubicación simulada)
+        $ubi1 = Ubicacion::firstOrCreate(
+            ['latitud' => '-17.514333'],
             [
-                'propietario_id' => $propietario1->id, 'manzano_id' => $manzanoA->id, 'ubicacion_id' => $ubi1->id,
-                'tipo' => 'Lote', 'precio_venta' => 150000, 'direccion' => 'Calle Los Tajibos Esq. Las Palmas',
-                'nro_lote' => '1', 'superficie_m2' => 350.50,
-                'colinda_norte' => 'Calle Las Palmas', 'colinda_sur' => 'Lote 2', 
-                'colinda_este' => 'Calle Los Tajibos', 'colinda_oeste' => 'Lote 14',
-                'estado' => 'Disponible', 'activo' => true
+                'referencia' => 'A 1½ cuadra de la carretera Warnes-SCZ',
+                'url_maps' => 'https://www.google.com/maps/search/?api=1&query=$-17.338062,-63.245930',
+                'longitud' => '-63.167232'
             ]
         );
 
-        // Propiedad 2
-        $ubi2 = Ubicacion::create([
-            'referencia' => 'A media cuadra de la avenida',
-            'url_maps' => 'https://www.google.com/maps/search/?api=1&query=$-17.339123,-63.246111',
-            'latitud' => '-17.339123', 'longitud' => '-63.246111'
-        ]);
-
-        Propiedad::firstOrCreate(
-            ['codigo' => 'LOTE-B05'],
+        $casaWarnes = Propiedad::firstOrCreate(
+            ['codigo' => 'CASA-WAR-001'],
             [
-                'propietario_id' => $propietario2->id, 'manzano_id' => $manzanoB->id, 'ubicacion_id' => $ubi2->id,
-                'tipo' => 'Lote', 'precio_venta' => 125000, 'direccion' => 'Calle 3, Barrio Nuevo',
-                'nro_lote' => '5', 'superficie_m2' => 300.00,
-                'colinda_norte' => 'Lote 4', 'colinda_sur' => 'Lote 6', 
-                'colinda_este' => 'Avenida Central', 'colinda_oeste' => 'Lote 10',
-                'estado' => 'Reservado', 'activo' => true
+                'propietario_id' => $propietario1->id, 
+                'zona_id' => $zonaSatelite->id, 
+                'ubicacion_id' => $ubi1->id,
+                'tipo' => 'Casa', 
+                'precio_venta' => 47000.00, 
+                'moneda' => 'USD',
+                'superficie_m2' => 300.00,
+                'superficie_construida_m2' => 78.00,
+                'habitaciones' => 3,
+                'banos' => 2,
+                'es_esquina' => false,
+                'direccion' => 'Calle Principal Sur',
+                'estado' => 'Disponible', 
+                'activo' => true
             ]
         );
+        $casaWarnes->caracteristicas()->sync([$cGas->id, $cLavanderia->id, $cTransporte->id]);
+
+        // Propiedad 2: Lote en Montero
+        $ubi2 = Ubicacion::firstOrCreate(
+            ['latitud' => '-17.339123'],
+            [
+                'referencia' => 'Terreno en esquina, Urb. Villa Esterita',
+                'url_maps' => 'https://www.google.com/maps/search/?api=1&query=$-17.339123,-63.246111',
+                'longitud' => '-63.246111'
+            ]
+        );
+
+        $loteMontero = Propiedad::firstOrCreate(
+            ['codigo' => 'LOTE-MON-001'],
+            [
+                'propietario_id' => $propietario2->id, 
+                'zona_id' => $zonaEsterita->id, 
+                'ubicacion_id' => $ubi2->id,
+                'tipo' => 'Lote', 
+                'precio_venta' => 13500.00, 
+                'moneda' => 'USD',
+                'superficie_m2' => 450.00,
+                'superficie_construida_m2' => 0.00,
+                'frente_mts' => 15.00,
+                'fondo_mts' => 30.00,
+                'habitaciones' => 0,
+                'banos' => 0,
+                'es_esquina' => true,
+                'direccion' => 'Carretera a Saavedra, Esquina Av. Principal',
+                'nro_lote' => '1',
+                'colinda_norte' => 'Lote 2',
+                'colinda_este' => 'Avenida Principal',
+                'estado' => 'Disponible', 
+                'activo' => true
+            ]
+        );
+        $loteMontero->caracteristicas()->sync([$cTransporte->id, $cAreasVerdes->id, $cColegio->id]);
     }
 }
