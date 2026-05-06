@@ -13,7 +13,8 @@ class Zona extends Model
 
     protected $fillable = [
         'ciudad_id',
-        'nombre'
+        'nombre',
+        'estado'
     ];
 
     // Relación Inversa: Una zona pertenece a una Ciudad

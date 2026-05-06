@@ -12,7 +12,7 @@ class PropiedadController extends Controller
     // 1. Listar todas con sus relaciones (CON BÚSQUEDA Y PAGINACIÓN)
     public function index(Request $request) {
         // Cargamos zona.ciudad para tener la ubicación completa y caracteristicas para los tags
-        $query = Propiedad::with(['propietario', 'zona.ciudad', 'ubicacion', 'caracteristicas']);
+        $query = Propiedad::with(['propietario', 'zona.ciudad', 'ubicacion', 'caracteristicas', 'imagenes']);
 
         // Búsqueda por Código de la propiedad o Nombre del Dueño
         if ($request->has('search') && $request->search != '') {
@@ -40,7 +40,7 @@ class PropiedadController extends Controller
     public function store(Request $request) {
         $validatedData = $request->validate([
             'propietario_id' => 'required|exists:propietarios,id',
-            'zona_id'        => 'required|exists:zonas,id', // Cambio de manzano a zona
+            'zona_id'        => 'required|exists:zonas,id',
             'ubicacion_id'   => 'nullable|exists:ubicaciones,id|unique:propiedades,ubicacion_id',
             'tipo'           => 'required|string|max:100',
             'codigo'         => 'required|string|max:100|unique:propiedades,codigo',
@@ -76,7 +76,7 @@ class PropiedadController extends Controller
 
                 return response()->json([
                     'message' => 'Propiedad registrada correctamente', 
-                    'data' => $propiedad->load(['propietario', 'zona.ciudad', 'caracteristicas'])
+                    'data' => $propiedad->load(['propietario', 'zona.ciudad', 'caracteristicas', 'imagenes'])
                 ], 201);
             });
         } catch (\Exception $e) {
@@ -86,7 +86,7 @@ class PropiedadController extends Controller
 
     // 3. Ver detalle completo
     public function show($id) {
-        $propiedad = Propiedad::with(['propietario', 'zona.ciudad', 'ubicacion', 'caracteristicas'])->findOrFail($id);
+        $propiedad = Propiedad::with(['propietario', 'zona.ciudad', 'ubicacion', 'caracteristicas', 'imagenes'])->findOrFail($id);
         return response()->json($propiedad, 200);
     }
 
@@ -132,7 +132,7 @@ class PropiedadController extends Controller
 
                 return response()->json([
                     'message' => 'Propiedad actualizada', 
-                    'data' => $propiedad->load(['propietario', 'zona.ciudad', 'caracteristicas'])
+                    'data' => $propiedad->load(['propietario', 'zona.ciudad', 'caracteristicas', 'imagenes'])
                 ], 200);
             });
         } catch (\Exception $e) {
@@ -150,5 +150,28 @@ class PropiedadController extends Controller
         $mensaje = $propiedad->activo ? 'Propiedad habilitada' : 'Propiedad inhabilitada';
 
         return response()->json(['message' => $mensaje, 'activo' => $propiedad->activo], 200);
+    }
+
+    // 6. Sincronizar Características (Endpoint Específico)
+    public function syncCaracteristicas(Request $request, $id) {
+        $propiedad = Propiedad::findOrFail($id);
+
+        $validatedData = $request->validate([
+            'caracteristica_ids'   => 'required|array',
+            'caracteristica_ids.*' => 'exists:caracteristicas,id'
+        ]);
+
+        try {
+            // sync() elimina las relaciones previas y deja solo las del array
+            $propiedad->caracteristicas()->sync($validatedData['caracteristica_ids']);
+
+            return response()->json([
+                'message' => 'Características sincronizadas correctamente',
+                'data'    => $propiedad->load('caracteristicas')
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al sincronizar: ' . $e->getMessage()], 500);
+        }
     }
 }

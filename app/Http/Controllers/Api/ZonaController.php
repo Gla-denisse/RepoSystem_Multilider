@@ -8,16 +8,38 @@ use Illuminate\Http\Request;
 
 class ZonaController extends Controller
 {
-    // Listar todas las zonas (opcionalmente filtradas por ciudad)
+    // Listar todas las zonas (Solo activas por defecto)
     public function index(Request $request)
     {
-        $query = Zona::with('ciudad');
+        // 1. Iniciamos la consulta cargando la relación 'ciudad' y filtrando por estado activo
+        // $query = Zona::with('ciudad')->where('estado', true);
+        $query = Zona::query();
 
-        if ($request->has('ciudad_id')) {
+        // 2. Filtro exacto por ciudad_id
+        if ($request->has('ciudad_id') && $request->ciudad_id != '') {
             $query->where('ciudad_id', $request->ciudad_id);
         }
 
-        return response()->json($query->get(), 200);
+        // 3. Filtro dinámico de búsqueda (search)
+        if ($request->has('search') && $request->search != '') {
+            $searchTerm = $request->search;
+            
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('nombre', 'LIKE', '%' . $searchTerm . '%')
+                  ->orWhereHas('ciudad', function($subQuery) use ($searchTerm) {
+                      $subQuery->where('nombre', 'LIKE', '%' . $searchTerm . '%');
+                  });
+            });
+        }
+
+        // 4. Capturamos la cantidad de registros por página (10 por defecto)
+        $perPage = $request->input('per_page', 10);
+
+        // 5. Ordenamos y aplicamos la paginación
+        $zonas = $query->orderBy('id', 'desc')->paginate($perPage);
+
+        // 6. Retornamos la respuesta
+        return response()->json($zonas, 200);
     }
 
     // Crear una nueva zona
@@ -26,9 +48,14 @@ class ZonaController extends Controller
         $validated = $request->validate([
             'ciudad_id' => 'required|exists:ciudades,id',
             'nombre'    => 'required|string|max:255',
+            'estado'    => 'nullable|boolean',
         ]);
 
-        $zona = Zona::create($validated);
+        $zona = Zona::create([
+            'ciudad_id' => $validated['ciudad_id'],
+            'nombre'    => $validated['nombre'],
+            'estado'    => $validated['estado'] ?? true,
+        ]);
 
         return response()->json([
             'message' => 'Zona registrada exitosamente',
@@ -51,9 +78,14 @@ class ZonaController extends Controller
         $validated = $request->validate([
             'ciudad_id' => 'required|exists:ciudades,id',
             'nombre'    => 'required|string|max:255',
+            'estado'    => 'nullable|boolean',
         ]);
 
-        $zona->update($validated);
+        $zona->update([
+            'ciudad_id' => $validated['ciudad_id'],
+            'nombre'    => $validated['nombre'],
+            'estado'    => $validated['estado'] ?? $zona->estado,
+        ]);
 
         return response()->json([
             'message' => 'Zona actualizada',
@@ -61,14 +93,20 @@ class ZonaController extends Controller
         ], 200);
     }
 
-    // Eliminar una zona
+    // Eliminar una zona (Eliminación lógica)
     public function destroy($id)
     {
         $zona = Zona::findOrFail($id);
-        $zona->delete();
+        
+        // Cambio de estado (Eliminación lógica)
+        $zona->estado = !$zona->estado;
+        $zona->save();
+
+        $mensaje = $zona->estado ? 'Zona habilitada correctamente' : 'Zona eliminada (inhabilitada) correctamente';
 
         return response()->json([
-            'message' => 'Zona eliminada correctamente'
+            'message' => $mensaje,
+            'estado'  => $zona->estado
         ], 200);
     }
 }

@@ -13,7 +13,8 @@ class Ciudad extends Model
 
     protected $fillable = [
         'nombre',
-        'departamento'
+        'departamento',
+        'estado'
     ];
 
     public function zonas()

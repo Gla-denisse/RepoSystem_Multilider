@@ -59,4 +59,14 @@ class User extends Authenticatable
             'rol_permiso_id'
         );
     }
+
+    /**
+     * Verifica si el usuario tiene un permiso específico.
+     */
+    public function hasPermission($permissionName)
+    {
+        return $this->asignaciones()->whereHas('permiso', function ($query) use ($permissionName) {
+            $query->where('nombre', $permissionName);
+        })->exists();
+    }
 }

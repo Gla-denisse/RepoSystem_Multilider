@@ -8,10 +8,7 @@ use App\Http\Controllers\Api\PermisoController;
 use App\Http\Controllers\Api\RolPermisoController;
 use App\Http\Controllers\Api\RolPermisoUsuarioController;
 use App\Http\Controllers\Api\AuthController;
-
 use App\Http\Controllers\Api\PropietarioController;
-use App\Http\Controllers\Api\ManzanoController;
-use App\Http\Controllers\Api\UbicacionController;
 use App\Http\Controllers\Api\PropiedadController;
 use App\Http\Controllers\Api\AsesorController;
 use App\Http\Controllers\Api\ClienteController;
@@ -19,6 +16,9 @@ use App\Http\Controllers\Api\NotaVentaController;
 use App\Http\Controllers\Api\CiudadController;
 use App\Http\Controllers\Api\ZonaController;
 use App\Http\Controllers\Api\CaracteristicaController;
+use App\Http\Controllers\Api\UbicacionController;
+use App\Http\Controllers\Api\ImagenPropiedadController;
+use App\Http\Controllers\Api\LandingController;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,6 +31,8 @@ use App\Http\Controllers\Api\CaracteristicaController;
 |
 */
 
+// Rutas Públicas (Landing Page)
+Route::get('/landing', [LandingController::class, 'getLandingData']);
 
 Route::post('/login', [AuthController::class, 'login']);
 
@@ -53,14 +55,23 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('asignar-permisos', RolPermisoController::class);
 
     Route::apiResource('propietarios', PropietarioController::class);
-    Route::apiResource('manzanos', ManzanoController::class);
     Route::apiResource('ubicaciones', UbicacionController::class);
     Route::apiResource('propiedades', PropiedadController::class);
+    Route::post('propiedades/{id}/caracteristicas/sync', [PropiedadController::class, 'syncCaracteristicas']);
+    
+    // Gestión de Imágenes de Propiedades
+    Route::post('propiedades/{id}/imagenes', [ImagenPropiedadController::class, 'store']);
+    Route::delete('imagenes-propiedades/{id}', [ImagenPropiedadController::class, 'destroy']);
+    Route::patch('imagenes-propiedades/{id}/principal', [ImagenPropiedadController::class, 'setPrincipal']);
+
     Route::apiResource('asesores', AsesorController::class);
     Route::apiResource('clientes', ClienteController::class);
     Route::apiResource('ciudades', CiudadController::class);
     Route::apiResource('zonas', ZonaController::class);
     Route::apiResource('caracteristicas', CaracteristicaController::class);
+    
+    // Configuración de Empresa
+    Route::post('empresa', [LandingController::class, 'updateEmpresa'])->middleware('permission:acceso_empresa');
     
     Route::apiResource('ventas', NotaVentaController::class)->except(['destroy', 'update']);
     Route::put('ventas/{id}/anular', [NotaVentaController::class, 'anular']);

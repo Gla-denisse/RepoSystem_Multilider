@@ -16,7 +16,7 @@ class NotaVentaController extends Controller
     // 1. Listar todas las ventas
     // 1. Listar ventas (CON FILTROS AVANZADOS)
     public function index(Request $request) {
-        $query = NotaVenta::with(['asesor', 'cliente', 'propiedad.propietario', 'propiedad.manzano']);
+        $query = NotaVenta::with(['asesor', 'cliente', 'propiedad.propietario', 'propiedad.zona.ciudad']);
 
         // Filtro por Fechas
         if ($request->filled('fecha_inicio') && $request->filled('fecha_fin')) {
@@ -106,7 +106,7 @@ class NotaVentaController extends Controller
             'asesor', 
             'cliente', 
             'propiedad.propietario', 
-            'propiedad.manzano',
+            'propiedad.zona.ciudad',
             'planPago.cuotas' // 🌟 Cargamos las cuotas
         ])->findOrFail($id);
 

@@ -16,7 +16,7 @@ class Propiedad extends Model
         'precio_venta', 'moneda', 'superficie_m2', 'superficie_construida_m2',
         'frente_mts', 'fondo_mts', 'habitaciones', 'banos', 'es_esquina',
         'direccion', 'nro_lote', 'colinda_norte', 'colinda_sur', 
-        'colinda_este', 'colinda_oeste', 'estado', 'activo'
+        'colinda_este', 'colinda_oeste', 'estado', 'activo', 'es_destacado'
     ];
 
     // Relación: Muchas propiedades pertenecen a una Zona
@@ -40,5 +40,10 @@ class Propiedad extends Model
     public function caracteristicas()
     {
         return $this->belongsToMany(Caracteristica::class, 'caracteristica_propiedad');
+    }
+
+    public function imagenes()
+    {
+        return $this->hasMany(ImagenPropiedad::class, 'propiedad_id');
     }
 }

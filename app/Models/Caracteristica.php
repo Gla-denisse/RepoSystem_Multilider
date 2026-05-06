@@ -13,7 +13,8 @@ class Caracteristica extends Model
 
     protected $fillable = [
         'nombre',
-        'tipo'
+        'tipo',
+        'estado'
     ];
 
     // Relación de Muchos a Muchos con Propiedades (La usaremos en el próximo paso)
