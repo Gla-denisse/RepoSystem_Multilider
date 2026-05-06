@@ -14,6 +14,7 @@ class Pago extends Model
     protected $fillable = [
         'nota_venta_id',
         'cuota_id',
+        'metodo_pago_id',
         'concepto_pago',
         'fecha_pago',
         'monto',
@@ -35,5 +36,10 @@ class Pago extends Model
     public function cuota()
     {
         return $this->belongsTo(Cuota::class, 'cuota_id');
+    }
+
+    public function metodoPago()
+    {
+        return $this->belongsTo(MetodoPago::class, 'metodo_pago_id');
     }
 }

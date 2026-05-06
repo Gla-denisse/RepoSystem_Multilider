@@ -7,6 +7,7 @@ use App\Models\NotaVenta;
 use App\Models\Propiedad;
 use App\Models\PlanPago;
 use App\Models\Cuota;
+use App\Models\Pago;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -16,7 +17,7 @@ class NotaVentaController extends Controller
     // 1. Listar todas las ventas
     // 1. Listar ventas (CON FILTROS AVANZADOS)
     public function index(Request $request) {
-        $query = NotaVenta::with(['asesor', 'cliente', 'propiedad.propietario', 'propiedad.zona.ciudad']);
+        $query = NotaVenta::with(['asesor', 'cliente', 'propiedad.propietario', 'propiedad.zona.ciudad', 'pagos.metodoPago']);
 
         // Filtro por Fechas
         if ($request->filled('fecha_inicio') && $request->filled('fecha_fin')) {
@@ -51,11 +52,12 @@ class NotaVentaController extends Controller
             'monto_total'    => 'required|numeric|min:0',
             'monto_comision' => 'nullable|numeric|min:0',
             'tipo_venta'     => 'required|in:CONTADO,CREDITO',
-            
+            'metodo_pago_id' => 'required|exists:metodos_pago,id',
+
             // Contado
             'descuento'      => 'nullable|numeric|min:0',
             'monto_liquido'  => 'required_if:tipo_venta,CONTADO|nullable|numeric|min:0',
-            
+
             // Crédito (Agregamos validaciones para el plan de pagos)
             'cuota_inicial'  => 'required_if:tipo_venta,CREDITO|nullable|numeric|min:0',
             'saldo_credito'  => 'required_if:tipo_venta,CREDITO|nullable|numeric|min:0',
@@ -78,19 +80,44 @@ class NotaVentaController extends Controller
 
             $propiedad->update(['estado' => 'Vendido']);
 
-            // 2. 🌟 SI ES CRÉDITO, GENERAMOS EL PLAN DE PAGOS AUTOMÁTICAMENTE
+            // 2. 🌟 REGISTRAR PAGO AUTOMÁTICAMENTE
+            if ($venta->tipo_venta === 'CONTADO') {
+                Pago::create([
+                    'nota_venta_id'  => $venta->id,
+                    'cuota_id'       => null,
+                    'metodo_pago_id' => $validatedData['metodo_pago_id'],
+                    'concepto_pago'  => 'VENTA_CONTADO',
+                    'fecha_pago'     => $validatedData['fecha'],
+                    'monto'          => $validatedData['monto_liquido'],
+                    'estado'         => 'Registrado',
+                    'observaciones'  => 'Pago automático por venta al contado'
+                ]);
+            } elseif ($venta->tipo_venta === 'CREDITO') {
+                Pago::create([
+                    'nota_venta_id'  => $venta->id,
+                    'cuota_id'       => null,
+                    'metodo_pago_id' => $validatedData['metodo_pago_id'],
+                    'concepto_pago'  => 'CUOTA_INICIAL',
+                    'fecha_pago'     => $validatedData['fecha'],
+                    'monto'          => $validatedData['cuota_inicial'],
+                    'estado'         => 'Registrado',
+                    'observaciones'  => 'Pago automático de cuota inicial'
+                ]);
+            }
+
+            // 3. SI ES CRÉDITO, GENERAMOS EL PLAN DE PAGOS AUTOMÁTICAMENTE
             if ($venta->tipo_venta === 'CREDITO') {
                 $this->generarPlanDePagos(
-                    $venta->id, 
-                    $validatedData['saldo_credito'], 
-                    $validatedData['numero_cuotas'], 
-                    $validatedData['tasa_interes'], 
+                    $venta->id,
+                    $validatedData['saldo_credito'],
+                    $validatedData['numero_cuotas'],
+                    $validatedData['tasa_interes'],
                     $validatedData['fecha_inicio_pago']
                 );
             }
 
             DB::commit();
-            return response()->json(['message' => 'Venta registrada con éxito', 'data' => $venta->load('planPago.cuotas')], 201);
+            return response()->json(['message' => 'Venta registrada con éxito', 'data' => $venta->load('planPago.cuotas', 'pagos')], 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -100,14 +127,13 @@ class NotaVentaController extends Controller
 
     // 3. Ver detalle de una venta
     public function show($id) {
-        // Cargamos la venta con: asesor, cliente, propiedad (y sus datos) 
-        // Y LO MÁS IMPORTANTE: el plan de pago con todas sus cuotas
         $venta = NotaVenta::with([
-            'asesor', 
-            'cliente', 
-            'propiedad.propietario', 
+            'asesor',
+            'cliente',
+            'propiedad.propietario',
             'propiedad.zona.ciudad',
-            'planPago.cuotas' // 🌟 Cargamos las cuotas
+            'planPago.cuotas',
+            'pagos.metodoPago'
         ])->findOrFail($id);
 
         return response()->json($venta, 200);
