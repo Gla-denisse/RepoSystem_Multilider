@@ -15,6 +15,7 @@ class Pago extends Model
         'nota_venta_id',
         'cuota_id',
         'metodo_pago_id',
+        'cuenta_id',
         'concepto_pago',
         'fecha_pago',
         'monto',
@@ -41,5 +42,10 @@ class Pago extends Model
     public function metodoPago()
     {
         return $this->belongsTo(MetodoPago::class, 'metodo_pago_id');
+    }
+
+    public function cuenta()
+    {
+        return $this->belongsTo(CuentaBancaria::class, 'cuenta_id');
     }
 }

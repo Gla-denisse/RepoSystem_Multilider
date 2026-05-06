@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             CaracteristicaSeeder::class,
             MiEmpresaSeeder::class,
             MetodoPagoSeeder::class,
+            CuentaBancariaSeeder::class,
         ]);
 
         // 2. Obtener los roles recién creados

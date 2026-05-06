@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\ImagenPropiedadController;
 use App\Http\Controllers\Api\LandingController;
 use App\Http\Controllers\Api\PagoController;
 use App\Http\Controllers\Api\MetodoPagoController;
+use App\Http\Controllers\Api\CuentaBancariaController;
 
 /*
 |--------------------------------------------------------------------------
@@ -72,6 +73,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('zonas', ZonaController::class);
     Route::apiResource('caracteristicas', CaracteristicaController::class);
     Route::apiResource('metodos-pago', MetodoPagoController::class);
+    Route::apiResource('cuentas-bancarias', CuentaBancariaController::class);
 
     // Configuración de Empresa
     Route::post('empresa', [LandingController::class, 'updateEmpresa'])->middleware('permission:acceso_empresa');

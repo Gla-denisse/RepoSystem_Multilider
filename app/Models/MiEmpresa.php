@@ -34,4 +34,10 @@ class MiEmpresa extends Model
         'color_primario',
         'color_secundario'
     ];
+
+    // Relaciones
+    public function cuentas()
+    {
+        return $this->hasMany(CuentaBancaria::class, 'mi_empresa_id');
+    }
 }
