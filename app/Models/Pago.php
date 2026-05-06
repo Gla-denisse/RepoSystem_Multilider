@@ -1,0 +1,39 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Pago extends Model
+{
+    use HasFactory;
+
+    protected $table = 'pagos';
+
+    protected $fillable = [
+        'nota_venta_id',
+        'cuota_id',
+        'concepto_pago',
+        'fecha_pago',
+        'monto',
+        'estado',
+        'observaciones'
+    ];
+
+    protected $casts = [
+        'fecha_pago' => 'date',
+        'monto' => 'decimal:2',
+    ];
+
+    // Relaciones
+    public function notaVenta()
+    {
+        return $this->belongsTo(NotaVenta::class, 'nota_venta_id');
+    }
+
+    public function cuota()
+    {
+        return $this->belongsTo(Cuota::class, 'cuota_id');
+    }
+}

@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\CaracteristicaController;
 use App\Http\Controllers\Api\UbicacionController;
 use App\Http\Controllers\Api\ImagenPropiedadController;
 use App\Http\Controllers\Api\LandingController;
+use App\Http\Controllers\Api\PagoController;
 
 /*
 |--------------------------------------------------------------------------
@@ -76,4 +77,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('ventas', NotaVentaController::class)->except(['destroy', 'update']);
     Route::put('ventas/{id}/anular', [NotaVentaController::class, 'anular']);
 
+    // Gestión de Pagos
+    Route::apiResource('pagos', PagoController::class);
+    Route::get('pagos/venta/{notaVentaId}/resumen', [PagoController::class, 'pagosPorVenta']);
+    Route::get('pagos/cliente/{clienteId}/resumen', [PagoController::class, 'resumenPorCliente']);
+    Route::put('pagos/{id}/cancelar', [PagoController::class, 'cancelar']);
+    Route::post('pagos/reportes/periodo', [PagoController::class, 'reportePeriodo']);
+
 });
+

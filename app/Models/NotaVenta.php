@@ -42,4 +42,8 @@ class NotaVenta extends Model
     public function planPago() {
         return $this->hasOne(PlanPago::class, 'nota_venta_id');
     }
+
+    public function pagos() {
+        return $this->hasMany(Pago::class, 'nota_venta_id');
+    }
 }
