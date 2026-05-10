@@ -37,6 +37,10 @@ use App\Http\Controllers\Api\MetodoPagoCuentaDefaultController;
 
 // Rutas Públicas (Landing Page)
 Route::get('/landing', [LandingController::class, 'getLandingData']);
+Route::get('/landing/propiedades', [LandingController::class, 'getPropiedades']);
+Route::get('/landing/propiedades/{id}', [LandingController::class, 'getPropiedad']);
+Route::get('/landing/propiedades/{id}/similares', [LandingController::class, 'getSimilares']);
+Route::get('/landing/ciudades', [LandingController::class, 'getCiudades']);
 
 Route::post('/login', [AuthController::class, 'login']);
 
