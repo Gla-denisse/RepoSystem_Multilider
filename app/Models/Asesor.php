@@ -17,6 +17,7 @@ class Asesor extends Model
         'telefono',
         'correo',
         'direccion',
+        'foto',
         'estado'
     ];
 

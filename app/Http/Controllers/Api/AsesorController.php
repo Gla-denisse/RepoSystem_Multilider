@@ -10,6 +10,7 @@ use App\Models\RolPermiso;
 use Illuminate\Http\Request;
 use DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Password;
 
 class AsesorController extends Controller
@@ -42,6 +43,7 @@ class AsesorController extends Controller
                 Password::min(8)->mixedCase()->letters()->numbers()->symbols()
             ],
             'direccion'       => 'nullable|string|max:255',
+            'foto'            => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'estado'          => 'nullable|boolean'
         ]);
 
@@ -65,6 +67,13 @@ class AsesorController extends Controller
                 $usuario->asignaciones()->sync($rolPermisoIds);
             }
 
+            // Manejo de la foto
+            $fotoPath = null;
+            if ($request->hasFile('foto')) {
+                $path = $request->file('foto')->store('asesores', 'public');
+                $fotoPath = Storage::url($path);
+            }
+
             // 3. Crear el Asesor vinculado
             $asesor = Asesor::create([
                 'user_id'      => $usuario->id,
@@ -72,6 +81,7 @@ class AsesorController extends Controller
                 'telefono'        => $validatedData['telefono'],
                 'correo'          => $validatedData['correo'],
                 'direccion'       => $validatedData['direccion'],
+                'foto'            => $fotoPath,
                 'estado'          => $validatedData['estado'] ?? true
             ]);
 
@@ -102,6 +112,7 @@ class AsesorController extends Controller
                 Password::min(8)->mixedCase()->letters()->numbers()->symbols()
             ],
             'direccion'       => 'nullable|string|max:255',
+            'foto'            => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'estado'          => 'nullable|boolean'
         ]);
 
@@ -122,12 +133,25 @@ class AsesorController extends Controller
             
             $asesor->usuario->update($usuarioData);
 
+            // Manejo de la foto
+            $fotoPath = $asesor->foto;
+            if ($request->hasFile('foto')) {
+                // Eliminar foto anterior si existe
+                if ($asesor->foto) {
+                    $oldPath = str_replace('/storage/', '', $asesor->foto);
+                    Storage::disk('public')->delete($oldPath);
+                }
+                $path = $request->file('foto')->store('asesores', 'public');
+                $fotoPath = Storage::url($path);
+            }
+
             // 2. Actualizamos el Asesor
             $asesor->update([
                 'nombre_completo' => $validatedData['nombre_completo'],
                 'telefono'        => $validatedData['telefono'],
                 'correo'          => $validatedData['correo'],
                 'direccion'       => $validatedData['direccion'],
+                'foto'            => $fotoPath,
                 'estado'          => $validatedData['estado'] ?? true
             ]);
 
