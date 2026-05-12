@@ -35,16 +35,17 @@ class AsesorController extends Controller
     // 2. Crear Asesor + Usuario Integrado
     public function store(Request $request) {
         $validatedData = $request->validate([
-            'nombre_completo' => 'required|string|max:255',
-            'telefono'        => 'nullable|string|max:50',
-            'correo'          => 'required|email|max:255|unique:users,correo', // El correo debe ser único para el usuario
+            'nombre_completo'     => 'required|string|max:255',
+            'telefono'            => 'nullable|string|max:50',
+            'correo'              => 'required|email|max:255|unique:users,correo',
             'password' => [
                 'required',
                 Password::min(8)->mixedCase()->letters()->numbers()->symbols()
             ],
-            'direccion'       => 'nullable|string|max:255',
-            'foto'            => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'estado'          => 'nullable|boolean'
+            'direccion'           => 'nullable|string|max:255',
+            'foto'                => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'estado'              => 'nullable|boolean',
+            'porcentaje_comision' => 'nullable|numeric|min:0|max:100',
         ]);
 
         try {
@@ -76,13 +77,14 @@ class AsesorController extends Controller
 
             // 3. Crear el Asesor vinculado
             $asesor = Asesor::create([
-                'user_id'      => $usuario->id,
-                'nombre_completo' => $validatedData['nombre_completo'],
-                'telefono'        => $validatedData['telefono'],
-                'correo'          => $validatedData['correo'],
-                'direccion'       => $validatedData['direccion'],
-                'foto'            => $fotoPath,
-                'estado'          => $validatedData['estado'] ?? true
+                'user_id'             => $usuario->id,
+                'nombre_completo'     => $validatedData['nombre_completo'],
+                'telefono'            => $validatedData['telefono'],
+                'correo'              => $validatedData['correo'],
+                'direccion'           => $validatedData['direccion'],
+                'foto'                => $fotoPath,
+                'estado'              => $validatedData['estado'] ?? true,
+                'porcentaje_comision' => $validatedData['porcentaje_comision'] ?? 3.00,
             ]);
 
             DB::commit(); // Si todo salió bien, guardamos ambos en la BD
@@ -103,17 +105,17 @@ class AsesorController extends Controller
         $asesor = Asesor::with('usuario')->findOrFail($id);
 
         $validatedData = $request->validate([
-            'nombre_completo' => 'required|string|max:255',
-            'telefono'        => 'nullable|string|max:50',
-            // Validamos el correo ignorando el del usuario actual
-            'correo'          => 'required|email|max:255|unique:users,correo,' . $asesor->user_id,
+            'nombre_completo'     => 'required|string|max:255',
+            'telefono'            => 'nullable|string|max:50',
+            'correo'              => 'required|email|max:255|unique:users,correo,' . $asesor->user_id,
             'password' => [
-                'nullable', // <- Puede venir vacío
+                'nullable',
                 Password::min(8)->mixedCase()->letters()->numbers()->symbols()
             ],
-            'direccion'       => 'nullable|string|max:255',
-            'foto'            => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'estado'          => 'nullable|boolean'
+            'direccion'           => 'nullable|string|max:255',
+            'foto'                => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'estado'              => 'nullable|boolean',
+            'porcentaje_comision' => 'nullable|numeric|min:0|max:100',
         ]);
 
         try {
@@ -147,12 +149,13 @@ class AsesorController extends Controller
 
             // 2. Actualizamos el Asesor
             $asesor->update([
-                'nombre_completo' => $validatedData['nombre_completo'],
-                'telefono'        => $validatedData['telefono'],
-                'correo'          => $validatedData['correo'],
-                'direccion'       => $validatedData['direccion'],
-                'foto'            => $fotoPath,
-                'estado'          => $validatedData['estado'] ?? true
+                'nombre_completo'     => $validatedData['nombre_completo'],
+                'telefono'            => $validatedData['telefono'],
+                'correo'              => $validatedData['correo'],
+                'direccion'           => $validatedData['direccion'],
+                'foto'                => $fotoPath,
+                'estado'              => $validatedData['estado'] ?? true,
+                'porcentaje_comision' => $validatedData['porcentaje_comision'] ?? $asesor->porcentaje_comision,
             ]);
 
             DB::commit();

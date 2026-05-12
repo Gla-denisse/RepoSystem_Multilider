@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\NotaVenta;
 use App\Models\Propiedad;
+use App\Models\Asesor;
 use App\Models\PlanPago;
 use App\Models\Cuota;
 use App\Models\Pago;
@@ -74,8 +75,13 @@ class NotaVentaController extends Controller
                 return response()->json(['message' => 'Esta propiedad ya fue vendida.'], 400);
             }
 
-            // 1. Creamos la Nota de Venta (Quitamos los campos del plan para que no fallen en el create masivo)
+            // Calcular comisión desde el porcentaje registrado del asesor
+            $asesor = Asesor::findOrFail($validatedData['asesor_id']);
+            $montoComision = round($validatedData['monto_total'] * ($asesor->porcentaje_comision / 100), 2);
+
+            // 1. Creamos la Nota de Venta
             $ventaData = collect($validatedData)->except(['numero_cuotas', 'tasa_interes', 'fecha_inicio_pago'])->toArray();
+            $ventaData['monto_comision'] = $montoComision;
             $venta = NotaVenta::create($ventaData);
 
             $propiedad->update(['estado' => 'Vendido']);
