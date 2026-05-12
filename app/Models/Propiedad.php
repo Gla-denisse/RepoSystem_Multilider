@@ -12,17 +12,16 @@ class Propiedad extends Model
     protected $table = 'propiedades';
 
     protected $fillable = [
-        'propietario_id', 'zona_id', 'ubicacion_id', 'codigo', 'tipo',
+        'propietario_id', 'sector_urbano_id', 'ubicacion_id', 'codigo', 'tipo',
         'precio_venta', 'moneda', 'superficie_m2', 'superficie_construida_m2',
         'frente_mts', 'fondo_mts', 'habitaciones', 'banos', 'es_esquina',
-        'direccion', 'nro_lote', 'colinda_norte', 'colinda_sur', 
+        'direccion', 'nro_lote', 'colinda_norte', 'colinda_sur',
         'colinda_este', 'colinda_oeste', 'estado', 'activo', 'es_destacado'
     ];
 
-    // Relación: Muchas propiedades pertenecen a una Zona
-    public function zona()
+    public function sectorUrbano()
     {
-        return $this->belongsTo(Zona::class, 'zona_id');
+        return $this->belongsTo(SectorUrbano::class, 'sector_urbano_id');
     }
 
     // Relación: Muchas propiedades pertenecen a un Propietario

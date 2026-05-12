@@ -8,6 +8,7 @@ use App\Models\Propiedad;
 use App\Models\PlanPago;
 use App\Models\Cuota;
 use App\Models\Pago;
+use App\Models\Contrato;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -17,7 +18,7 @@ class NotaVentaController extends Controller
     // 1. Listar todas las ventas
     // 1. Listar ventas (CON FILTROS AVANZADOS)
     public function index(Request $request) {
-        $query = NotaVenta::with(['asesor', 'cliente', 'propiedad.propietario', 'propiedad.zona.ciudad', 'pagos.metodoPago']);
+        $query = NotaVenta::with(['asesor', 'cliente', 'propiedad.propietario', 'propiedad.sectorUrbano.distrito.ciudad', 'pagos.metodoPago']);
 
         // Filtro por Fechas
         if ($request->filled('fecha_inicio') && $request->filled('fecha_fin')) {
@@ -106,7 +107,19 @@ class NotaVentaController extends Controller
                 ]);
             }
 
-            // 3. SI ES CRÉDITO, GENERAMOS EL PLAN DE PAGOS AUTOMÁTICAMENTE
+            // 3. CREAR CONTRATO AUTOMÁTICAMENTE EN ESTADO PENDIENTE
+            $codigoContrato = 'CONT-' . date('Y') . '-' . str_pad($venta->id, 4, '0', STR_PAD_LEFT);
+            Contrato::create([
+                'nota_venta_id'   => $venta->id,
+                'codigo_contrato' => $codigoContrato,
+                'fecha_emision'   => $venta->fecha,
+                'fecha_firma'     => null,
+                'tipo_venta'      => $venta->tipo_venta === 'CONTADO' ? 'Contado' : 'Crédito',
+                'url_doc'         => null,
+                'estado'          => 'Pendiente',
+            ]);
+
+            // 4. SI ES CRÉDITO, GENERAMOS EL PLAN DE PAGOS AUTOMÁTICAMENTE
             if ($venta->tipo_venta === 'CREDITO') {
                 $this->generarPlanDePagos(
                     $venta->id,
@@ -132,7 +145,7 @@ class NotaVentaController extends Controller
             'asesor',
             'cliente',
             'propiedad.propietario',
-            'propiedad.zona.ciudad',
+            'propiedad.sectorUrbano.distrito.ciudad',
             'planPago.cuotas',
             'pagos.metodoPago'
         ])->findOrFail($id);

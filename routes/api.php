@@ -14,12 +14,14 @@ use App\Http\Controllers\Api\AsesorController;
 use App\Http\Controllers\Api\ClienteController;
 use App\Http\Controllers\Api\NotaVentaController;
 use App\Http\Controllers\Api\CiudadController;
-use App\Http\Controllers\Api\ZonaController;
+use App\Http\Controllers\Api\DistritoController;
+use App\Http\Controllers\Api\SectorUrbanoController;
 use App\Http\Controllers\Api\CaracteristicaController;
 use App\Http\Controllers\Api\UbicacionController;
 use App\Http\Controllers\Api\ImagenPropiedadController;
 use App\Http\Controllers\Api\LandingController;
 use App\Http\Controllers\Api\PagoController;
+use App\Http\Controllers\Api\ContratoController;
 use App\Http\Controllers\Api\MetodoPagoController;
 use App\Http\Controllers\Api\CuentaBancariaController;
 use App\Http\Controllers\Api\MetodoPagoCuentaDefaultController;
@@ -41,6 +43,8 @@ Route::get('/landing/propiedades', [LandingController::class, 'getPropiedades'])
 Route::get('/landing/propiedades/{id}', [LandingController::class, 'getPropiedad']);
 Route::get('/landing/propiedades/{id}/similares', [LandingController::class, 'getSimilares']);
 Route::get('/landing/ciudades', [LandingController::class, 'getCiudades']);
+Route::get('/landing/distritos', [LandingController::class, 'getDistritos']);
+Route::get('/landing/sectores-urbanos/{distritoId}', [LandingController::class, 'getSectoresUrbanos']);
 
 Route::post('/login', [AuthController::class, 'login']);
 
@@ -75,7 +79,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('asesores', AsesorController::class);
     Route::apiResource('clientes', ClienteController::class);
     Route::apiResource('ciudades', CiudadController::class);
-    Route::apiResource('zonas', ZonaController::class);
+    Route::apiResource('distritos', DistritoController::class);
+    Route::get('sectores-urbanos/por-distrito/{distritoId}', [SectorUrbanoController::class, 'porDistrito']);
+    Route::apiResource('sectores-urbanos', SectorUrbanoController::class);
     Route::apiResource('caracteristicas', CaracteristicaController::class);
     Route::apiResource('metodos-pago', MetodoPagoController::class);
     Route::apiResource('cuentas-bancarias', CuentaBancariaController::class);
@@ -87,6 +93,14 @@ Route::middleware('auth:sanctum')->group(function () {
     
     Route::apiResource('ventas', NotaVentaController::class)->except(['destroy', 'update']);
     Route::put('ventas/{id}/anular', [NotaVentaController::class, 'anular']);
+
+    // Módulo de Contratos
+    Route::middleware('permission:acceso_contratos')->group(function () {
+        Route::get('contratos', [ContratoController::class, 'index']);
+        Route::post('contratos/{id}/gestionar', [ContratoController::class, 'gestionar']);
+        Route::put('contratos/{id}/anular', [ContratoController::class, 'anular']);
+        Route::get('contratos/{id}/descargar', [ContratoController::class, 'descargar']);
+    });
 
     // Gestión de Pagos
     Route::middleware('permission:acceso_pagos')->group(function () {

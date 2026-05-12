@@ -17,14 +17,14 @@ class LandingController extends Controller
     public function getLandingData()
     {
         $empresa = MiEmpresa::first();
-        
-        $propiedadesDestacadas = Propiedad::with(['zona.ciudad', 'imagenes'])
+
+        $propiedadesDestacadas = Propiedad::with(['sectorUrbano.distrito.ciudad', 'imagenes', 'caracteristicas'])
             ->where('activo', true)
             ->where('es_destacado', true)
             ->limit(6)
             ->get();
 
-        $ultimasPropiedades = Propiedad::with(['zona.ciudad', 'imagenes'])
+        $ultimasPropiedades = Propiedad::with(['sectorUrbano.distrito.ciudad', 'imagenes', 'caracteristicas'])
             ->where('activo', true)
             ->orderBy('created_at', 'desc')
             ->limit(6)
@@ -45,23 +45,30 @@ class LandingController extends Controller
      */
     public function getPropiedades(Request $request)
     {
-        $query = Propiedad::with(['zona.ciudad', 'imagenes'])
+        $query = Propiedad::with(['sectorUrbano.distrito.ciudad', 'imagenes', 'caracteristicas'])
             ->where('activo', true)
-            ->where('estado', '!=', 'Vendido'); // Solo mostrar disponibles
+            ->where('estado', '!=', 'Vendido');
 
-        // Filtro por Tipo (Casa, Lote)
         if ($request->filled('tipo') && $request->tipo !== 'Todos') {
             $query->where('tipo', $request->tipo);
         }
 
-        // Filtro por Ciudad
         if ($request->filled('ciudad_id')) {
-            $query->whereHas('zona', function($q) use ($request) {
+            $query->whereHas('sectorUrbano.distrito', function($q) use ($request) {
                 $q->where('ciudad_id', $request->ciudad_id);
             });
         }
 
-        // Filtro por Rango de Precio
+        if ($request->filled('distrito_id')) {
+            $query->whereHas('sectorUrbano', function($q) use ($request) {
+                $q->where('distrito_id', $request->distrito_id);
+            });
+        }
+
+        if ($request->filled('sector_urbano_id')) {
+            $query->where('sector_urbano_id', $request->sector_urbano_id);
+        }
+
         if ($request->filled('precio_min')) {
             $query->where('precio_venta', '>=', $request->precio_min);
         }
@@ -69,17 +76,15 @@ class LandingController extends Controller
             $query->where('precio_venta', '<=', $request->precio_max);
         }
 
-        // Filtro por Habitaciones (Casa)
         if ($request->filled('habitaciones')) {
             $query->where('habitaciones', '>=', $request->habitaciones);
         }
 
-        // Búsqueda general (Código o Zona)
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('codigo', 'LIKE', "%{$search}%")
-                  ->orWhereHas('zona', function($z) use ($search) {
+                  ->orWhereHas('sectorUrbano', function($z) use ($search) {
                       $z->where('nombre', 'LIKE', "%{$search}%");
                   });
             });
@@ -96,7 +101,7 @@ class LandingController extends Controller
      */
     public function getPropiedad($id)
     {
-        $propiedad = Propiedad::with(['zona.ciudad', 'imagenes', 'caracteristicas', 'ubicacion'])
+        $propiedad = Propiedad::with(['sectorUrbano.distrito.ciudad', 'imagenes', 'caracteristicas', 'ubicacion'])
             ->where('activo', true)
             ->findOrFail($id);
 
@@ -110,7 +115,7 @@ class LandingController extends Controller
     {
         $propiedad = Propiedad::findOrFail($id);
 
-        $similares = Propiedad::with(['zona.ciudad', 'imagenes', 'caracteristicas'])
+        $similares = Propiedad::with(['sectorUrbano.distrito.ciudad', 'imagenes', 'caracteristicas'])
             ->where('activo', true)
             ->where('tipo', $propiedad->tipo)
             ->where('id', '!=', $id)
@@ -129,6 +134,33 @@ class LandingController extends Controller
     {
         $ciudades = \App\Models\Ciudad::where('estado', true)->get();
         return response()->json($ciudades, 200);
+    }
+
+    /**
+     * Obtiene listado de distritos activos (opcionalmente filtrado por ciudad).
+     */
+    public function getDistritos(Request $request)
+    {
+        $query = \App\Models\Distrito::where('estado', true)->with('ciudad');
+
+        if ($request->filled('ciudad_id')) {
+            $query->where('ciudad_id', $request->ciudad_id);
+        }
+
+        return response()->json($query->orderBy('nombre')->get(), 200);
+    }
+
+    /**
+     * Obtiene sectores urbanos activos de un distrito para filtros en cascada.
+     */
+    public function getSectoresUrbanos($distritoId)
+    {
+        $sectores = \App\Models\SectorUrbano::where('distrito_id', $distritoId)
+            ->where('estado', true)
+            ->orderBy('nombre')
+            ->get();
+
+        return response()->json($sectores, 200);
     }
 
     /**
