@@ -14,6 +14,8 @@ class MiEmpresa extends Model
     protected $fillable = [
         'nombre',
         'logo',
+        'logo_login',
+        'logo_sidebar_compact',
         'hero_image_1', 'hero_title_1', 'hero_subtitle_1',
         'hero_image_2', 'hero_title_2', 'hero_subtitle_2',
         'hero_image_3', 'hero_title_3', 'hero_subtitle_3',

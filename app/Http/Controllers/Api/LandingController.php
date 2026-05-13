@@ -200,7 +200,7 @@ class LandingController extends Controller
         ]);
 
         // Procesar Archivos de Imagen
-        $imageFields = ['logo', 'hero_image_1', 'hero_image_2', 'hero_image_3'];
+        $imageFields = ['logo', 'logo_login', 'logo_sidebar_compact', 'hero_image_1', 'hero_image_2', 'hero_image_3'];
 
         foreach ($imageFields as $field) {
             if ($request->hasFile($field)) {
