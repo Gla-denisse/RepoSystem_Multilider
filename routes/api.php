@@ -40,10 +40,11 @@ use App\Http\Controllers\Api\PagoPublicoController;
 
 // Rutas Públicas (Landing Page + Portal de Pagos)
 Route::prefix('public')->group(function () {
-    Route::post('clientes/buscar',       [PagoPublicoController::class, 'buscarCliente']);
-    Route::post('pagos/procesar',        [PagoPublicoController::class, 'procesarPago']);
-    Route::get('pagos/verificar/{id}',   [PagoPublicoController::class, 'verificarEstado']);
-    Route::post('pagos/callback',        [PagoPublicoController::class, 'callbackLibelula']);
+    Route::post('clientes/buscar',           [PagoPublicoController::class, 'buscarCliente']);
+    Route::post('pagos/procesar',            [PagoPublicoController::class, 'procesarPago']);
+    Route::get('pagos/verificar/{id}',       [PagoPublicoController::class, 'verificarEstado']);
+    Route::post('pagos/callback',            [PagoPublicoController::class, 'callbackLibelula']);
+    Route::post('pagos/confirmar-retorno',   [PagoPublicoController::class, 'confirmarRetorno']);
 });
 
 Route::get('/landing', [LandingController::class, 'getLandingData']);
