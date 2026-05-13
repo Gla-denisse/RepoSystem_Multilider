@@ -99,6 +99,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Ruta de reportes podría tener un permiso más específico si se desea, 
     // pero por ahora lo dejamos bajo acceso_pagos o libre para admin
     Route::post('pagos/reportes/periodo', [PagoController::class, 'reportePeriodo'])->middleware('permission:acceso_reportes_pagos');
+    Route::get('/test-auth', function() {
+    return response()->json(['ok' => true]);
+})->middleware('auth:sanctum');
 
 });
 
