@@ -20,7 +20,13 @@ class Pago extends Model
         'fecha_pago',
         'monto',
         'estado',
-        'observaciones'
+        'observaciones',
+        'ci_pagador',
+        'telefono_pagador',
+        'nombres_pagador',
+        'apellidos_pagador',
+        'correo_pagador',
+        'id_transaccion_libelula',
     ];
 
     protected $casts = [

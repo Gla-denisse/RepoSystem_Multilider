@@ -17,7 +17,9 @@ class Asesor extends Model
         'telefono',
         'correo',
         'direccion',
-        'estado'
+        'foto',
+        'estado',
+        'porcentaje_comision'
     ];
 
     // Relación Inversa: Un asesor pertenece a un usuario

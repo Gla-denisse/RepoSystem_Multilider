@@ -12,7 +12,8 @@ use App\Models\Asesor;
 use App\Models\Cliente;
 use App\Models\Propietario;
 use App\Models\Ciudad;
-use App\Models\Zona;
+use App\Models\Distrito;
+use App\Models\SectorUrbano;
 use App\Models\Caracteristica;
 use App\Models\Ubicacion;
 use App\Models\Propiedad;
@@ -109,13 +110,28 @@ class DatosPruebaSeeder extends Seeder
         );
 
         // ==========================================
-        // 4. NUEVO: POBLAR CIUDADES, ZONAS Y CARACTERÍSTICAS
+        // 4. POBLAR CIUDADES, DISTRITOS, SECTORES URBANOS Y CARACTERÍSTICAS
         // ==========================================
         $ciudadWarnes = Ciudad::firstOrCreate(['nombre' => 'Warnes'], ['departamento' => 'Santa Cruz']);
         $ciudadMontero = Ciudad::firstOrCreate(['nombre' => 'Montero'], ['departamento' => 'Santa Cruz']);
 
-        $zonaSatelite = Zona::firstOrCreate(['nombre' => 'Zona Juan Pablo II, Satélite Norte'], ['ciudad_id' => $ciudadWarnes->id]);
-        $zonaEsterita = Zona::firstOrCreate(['nombre' => 'Urb. Villa Esterita'], ['ciudad_id' => $ciudadMontero->id]);
+        $distritoSatelite = Distrito::firstOrCreate(
+            ['nombre' => 'Satélite Norte', 'ciudad_id' => $ciudadWarnes->id],
+            ['estado' => true]
+        );
+        $distritoCentroMontero = Distrito::firstOrCreate(
+            ['nombre' => 'Zona Oeste', 'ciudad_id' => $ciudadMontero->id],
+            ['estado' => true]
+        );
+
+        $sectorJuanPablo = SectorUrbano::firstOrCreate(
+            ['nombre' => 'Juan Pablo II', 'distrito_id' => $distritoSatelite->id],
+            ['tipo' => 'Barrio', 'estado' => true]
+        );
+        $sectorVillaEsterita = SectorUrbano::firstOrCreate(
+            ['nombre' => 'Villa Esterita', 'distrito_id' => $distritoCentroMontero->id],
+            ['tipo' => 'Urbanización', 'estado' => true]
+        );
 
         $cGas = Caracteristica::firstOrCreate(['nombre' => 'Gas Domiciliario'], ['tipo' => 'Servicios']);
         $cTransporte = Caracteristica::firstOrCreate(['nombre' => 'Transporte Público Cercano'], ['tipo' => 'Entorno']);
@@ -140,8 +156,8 @@ class DatosPruebaSeeder extends Seeder
         $casaWarnes = Propiedad::firstOrCreate(
             ['codigo' => 'CASA-WAR-001'],
             [
-                'propietario_id' => $propietario1->id, 
-                'zona_id' => $zonaSatelite->id, 
+                'propietario_id' => $propietario1->id,
+                'sector_urbano_id' => $sectorJuanPablo->id,
                 'ubicacion_id' => $ubi1->id,
                 'tipo' => 'Casa', 
                 'precio_venta' => 47000.00, 
@@ -171,8 +187,8 @@ class DatosPruebaSeeder extends Seeder
         $loteMontero = Propiedad::firstOrCreate(
             ['codigo' => 'LOTE-MON-001'],
             [
-                'propietario_id' => $propietario2->id, 
-                'zona_id' => $zonaEsterita->id, 
+                'propietario_id' => $propietario2->id,
+                'sector_urbano_id' => $sectorVillaEsterita->id,
                 'ubicacion_id' => $ubi2->id,
                 'tipo' => 'Lote', 
                 'precio_venta' => 13500.00, 

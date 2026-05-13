@@ -23,6 +23,7 @@ return new class extends Migration
             $table->string('telefono')->nullable();
             $table->string('correo')->nullable();
             $table->string('direccion')->nullable();
+            $table->string('foto')->nullable();
             
             // ESTADO PARA ACTIVAR/DESACTIVAR
             $table->boolean('estado')->default(true);
