@@ -15,6 +15,7 @@ class MiEmpresa extends Model
         'nombre',
         'logo',
         'logo_login',
+        'logo_sidebar',
         'logo_sidebar_compact',
         'hero_image_1', 'hero_title_1', 'hero_subtitle_1',
         'hero_image_2', 'hero_title_2', 'hero_subtitle_2',
