@@ -113,6 +113,10 @@ class PagoPublicoController extends Controller
             $pagoIdsAfectados = collect($request->pago_ids ?? []);
             $cuotaIdsAfectados = collect($request->cuota_ids ?? []);
 
+            // ── MODO PRUEBAS: monto fijo 0.20 Bs para no cargar importes reales ──
+            // TODO: eliminar esta constante al pasar a producción
+            $montoPrueba = 0.2;
+
             // ── 1. Pagos de contado/cuota inicial existentes ─────────────────
             if ($pagoIdsAfectados->isNotEmpty()) {
                 $pagosExistentes = Pago::whereIn('id', $pagoIdsAfectados)
@@ -121,11 +125,13 @@ class PagoPublicoController extends Controller
                     ->get();
 
                 foreach ($pagosExistentes as $pago) {
+                    $etiqueta = $pago->concepto_pago === 'VENTA_CONTADO' ? 'Pago contado' : 'Cuota inicial';
+                    $propiedad = $pago->notaVenta->propiedad->codigo ?? 'Propiedad';
+                    $montoReal = number_format((float) $pago->monto, 2);
+
                     $lineasDetalle[] = [
-                        'descripcion'    => $pago->concepto_pago === 'VENTA_CONTADO'
-                            ? 'Pago contado - ' . ($pago->notaVenta->propiedad->codigo ?? 'Propiedad')
-                            : 'Cuota inicial - ' . ($pago->notaVenta->propiedad->codigo ?? 'Propiedad'),
-                        'costo_unitario' => (float) $pago->monto,
+                        'concepto'       => "[PRUEBA] {$etiqueta} - {$propiedad} (Real: Bs {$montoReal})",
+                        'costo_unitario' => $montoPrueba,
                         'cantidad'       => 1,
                     ];
 
@@ -148,9 +154,12 @@ class PagoPublicoController extends Controller
                     ->get();
 
                 foreach ($cuotas as $cuota) {
+                    $propiedad = $cuota->planPago->notaVenta->propiedad->codigo ?? 'Propiedad';
+                    $montoReal = number_format((float) $cuota->monto_cuota, 2);
+
                     $lineasDetalle[] = [
-                        'descripcion'    => 'Cuota ' . $cuota->numero_cuota . ' - ' . ($cuota->planPago->notaVenta->propiedad->codigo ?? 'Propiedad'),
-                        'costo_unitario' => (float) $cuota->monto_cuota,
+                        'concepto'       => "[PRUEBA] Cuota {$cuota->numero_cuota} - {$propiedad} (Real: Bs {$montoReal})",
+                        'costo_unitario' => $montoPrueba,
                         'cantidad'       => 1,
                     ];
 
@@ -175,9 +184,13 @@ class PagoPublicoController extends Controller
 
             // ── 3. Llamar a Libélula ──────────────────────────────────────────
             $libelulaUrl = rtrim(env('LIBELULA_API_URL', 'https://api.libelula.bo'), '/');
-            $callbackUrl = env('APP_URL', 'http://localhost:8000') . '/api/public/pagos/callback';
-            // url_retorno lleva el id_transaccion para que el frontend pueda confirmar el pago
-            // cuando Libélula redirija al cliente de vuelta (funciona aunque el callback no llegue)
+            // Incluimos nuestro identificador en el callback_url (igual que el plugin de WooCommerce
+            // incluye todotix_order_id), para poder asociar el callback con nuestra transacción
+            // sin depender únicamente del libelula_uuid.
+            $callbackUrl = env('APP_URL', 'http://localhost:8000')
+                . '/api/public/pagos/callback'
+                . '?identificador=' . urlencode($idTemp);
+            // url_retorno hace que Libélula redirija el navegador del usuario al frontend tras el pago
             $urlRetorno  = env('FRONTEND_URL', 'http://localhost:5173') . '/pagar?txn=' . urlencode($idTemp);
 
             $libelulaResp = Http::timeout(15)->post($libelulaUrl . '/rest/deuda/registrar', [
@@ -210,11 +223,24 @@ class PagoPublicoController extends Controller
                 return response()->json(['message' => $msg], 502);
             }
 
-            // Nuestro $idTemp permanece en la BD como identificador único de esta transacción.
-            // El UUID de Libélula solo se registra en el log para reconciliación.
-            Log::info('Libélula id_transaccion', ['libelula_uuid' => $respData['id_transaccion'] ?? null, 'nuestro_id' => $idTemp]);
+            $libelulaUuid        = $respData['id_transaccion']    ?? null;
+            $codigoRecaudacion   = $respData['codigo_recaudacion'] ?? null;
+            Log::info('Libélula registrar ids', [
+                'libelula_uuid'       => $libelulaUuid,
+                'codigo_recaudacion'  => $codigoRecaudacion,
+                'nuestro_id'          => $idTemp,
+                'respuesta_completa'  => $respData,
+            ]);
 
             DB::commit();
+
+            // Persistir UUID y código de recaudación de Libélula para el endpoint consultar
+            $camposLibelula = [];
+            if ($libelulaUuid)      $camposLibelula['libelula_uuid']             = $libelulaUuid;
+            if ($codigoRecaudacion) $camposLibelula['codigo_recaudacion_libelula'] = $codigoRecaudacion;
+            if ($camposLibelula) {
+                Pago::whereIn('id', $pagoIdsAfectados->all())->update($camposLibelula);
+            }
 
             return response()->json([
                 'id_transaccion' => $idTemp,
@@ -231,57 +257,26 @@ class PagoPublicoController extends Controller
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // PASO 4 → Polling: verificar estado consultando primero Libélula y luego BD
+    // PASO 4 → Polling: retorna el estado de la transacción desde nuestra BD.
+    // El callback de Libélula actualiza la BD; este endpoint solo la consulta.
+    // (El endpoint /rest/deuda/consultar de Libélula no funciona con el API key
+    // de testing — eliminado para evitar 3 peticiones fallidas por cada poll.)
     // ─────────────────────────────────────────────────────────────────────────
     public function verificarEstado($transaccionId)
     {
         $pagos = Pago::where('id_transaccion_libelula', $transaccionId)->get();
 
         if ($pagos->isEmpty()) {
-            return response()->json(['estado' => 'NO_ENCONTRADO'], 404);
+            return response()->json(['estado' => 'NO_ENCONTRADO', 'message' => 'Transacción no encontrada.'], 404);
         }
 
-        // Si ya está pagado en nuestra BD, retornar directo
-        if ($pagos->every(fn($p) => $p->estado === 'PAGADO')) {
-            return response()->json(['estado' => 'PAGADO', 'total_pagos' => $pagos->count(), 'confirmados' => $pagos->count()]);
-        }
+        $totalPagado = $pagos->where('estado', 'PAGADO')->count();
+        $estado      = $pagos->every(fn($p) => $p->estado === 'PAGADO') ? 'PAGADO' : $pagos->first()->estado;
 
-        // Consultar estado en Libélula para no depender del webhook
-        try {
-            $libelulaUrl = rtrim(env('LIBELULA_API_URL', 'https://api.libelula.bo'), '/');
-            $resp = Http::timeout(8)->post($libelulaUrl . '/rest/deuda/consultar', [
-                'appkey'       => env('LIBELULA_API_KEY'),
-                'identificador' => $transaccionId,
-            ]);
-
-            Log::info('Libélula consultar response', ['status' => $resp->status(), 'body' => $resp->json()]);
-
-            $data = $resp->json();
-            $estadoLib = strtoupper($data['estado'] ?? $data['status'] ?? $data['estado_pago'] ?? '');
-
-            if (in_array($estadoLib, ['PAGADO', 'APROBADO', 'COMPLETADO', 'SUCCESS', 'OK', 'PAID'])) {
-                // Actualizar BD y retornar PAGADO
-                DB::beginTransaction();
-                foreach ($pagos as $pago) {
-                    $pago->update(['estado' => 'PAGADO', 'fecha_pago' => now()->toDateString()]);
-                    if ($pago->cuota_id) {
-                        Cuota::where('id', $pago->cuota_id)->update(['estado' => 'Pagada']);
-                    }
-                }
-                DB::commit();
-
-                return response()->json(['estado' => 'PAGADO', 'total_pagos' => $pagos->count(), 'confirmados' => $pagos->count()]);
-            }
-        } catch (\Exception $e) {
-            // El endpoint de consulta puede no existir — loguear y continuar con BD
-            Log::warning('Libélula consultar falló', ['error' => $e->getMessage()]);
-        }
-
-        $alguno = $pagos->first();
         return response()->json([
-            'estado'      => $alguno->estado,
+            'estado'      => $estado,
             'total_pagos' => $pagos->count(),
-            'confirmados' => $pagos->where('estado', 'PAGADO')->count(),
+            'confirmados' => $totalPagado,
         ]);
     }
 
@@ -336,47 +331,85 @@ class PagoPublicoController extends Controller
 
     // ─────────────────────────────────────────────────────────────────────────
     // Webhook de Libélula → confirmar pago
+    // Libélula envía: transaction_id (su UUID), error ('0'=ok), message, cancel_order
     // ─────────────────────────────────────────────────────────────────────────
     public function callbackLibelula(Request $request)
     {
-        $idTransaccion = $request->input('id_transaccion')
+        // Libélula envía estos campos (confirmado en su plugin oficial WooCommerce)
+        $libelulaTransactionId = $request->input('transaction_id');   // UUID de Libélula
+        $error                 = (string) $request->input('error', '1');
+        $cancelOrder           = (string) $request->input('cancel_order', '');
+
+        // Nuestro identificador viene como GET param en la URL del callback
+        // (lo incluimos en callback_url: .../callback?identificador=TEMP-xxx)
+        $nuestroId = $request->query('identificador')
             ?? $request->input('identificador')
             ?? null;
 
-        $estado = $request->input('estado', '');
+        Log::info('Callback Libélula recibido', [
+            'query'          => $request->query(),
+            'body'           => $request->all(),
+            'transaction_id' => $libelulaTransactionId,
+            'error'          => $error,
+            'cancel_order'   => $cancelOrder,
+            'nuestro_id'     => $nuestroId,
+        ]);
 
-        Log::info('Callback Libélula recibido', $request->all());
-
-        if (!$idTransaccion) {
-            return response()->json(['ok' => false, 'message' => 'Sin id_transaccion'], 400);
+        // Cancelación explícita — ignorar sin error
+        if ($cancelOrder === '1') {
+            Log::info('Callback: orden cancelada', compact('nuestroId', 'libelulaTransactionId'));
+            return response()->json(['ok' => true, 'message' => 'Orden cancelada.']);
         }
 
-        $esAprobado = in_array(strtoupper($estado), ['APROBADO', 'COMPLETADO', 'PAGADO', 'SUCCESS', 'OK']);
+        // Libélula usa error='0' para indicar éxito (string, igual que el plugin WooCommerce)
+        if ($error !== '0') {
+            Log::info('Callback: pago no aprobado', ['error' => $error, 'msg' => $request->input('message')]);
+            return response()->json(['ok' => true, 'message' => 'Pago no aprobado, ignorado.']);
+        }
 
-        if (!$esAprobado) {
-            return response()->json(['ok' => true, 'message' => 'Estado no aprobado, ignorado.']);
+        // Buscar pagos pendientes:
+        // 1) Por nuestro identificador interno (viene en el query param del callback_url)
+        // 2) Por libelula_uuid (transaction_id que Libélula nos envía)
+        $pagos = collect();
+
+        if ($nuestroId) {
+            $pagos = Pago::where('id_transaccion_libelula', $nuestroId)
+                ->where('estado', 'PENDIENTE_PAGO')
+                ->get();
+        }
+
+        if ($pagos->isEmpty() && $libelulaTransactionId) {
+            $pagos = Pago::where('libelula_uuid', $libelulaTransactionId)
+                ->where('estado', 'PENDIENTE_PAGO')
+                ->get();
+        }
+
+        if ($pagos->isEmpty()) {
+            Log::warning('Callback: no se encontraron pagos pendientes', [
+                'nuestro_id'     => $nuestroId,
+                'transaction_id' => $libelulaTransactionId,
+            ]);
+            // Retornar 200 para que Libélula no reintente
+            return response()->json(['ok' => true, 'message' => 'Sin pagos pendientes.']);
         }
 
         try {
             DB::beginTransaction();
 
-            $pagos = Pago::where('id_transaccion_libelula', $idTransaccion)
-                ->where('estado', 'PENDIENTE_PAGO')
-                ->get();
-
             foreach ($pagos as $pago) {
-                $pago->update([
-                    'estado'     => 'PAGADO',
-                    'fecha_pago' => now()->toDateString(),
-                ]);
+                $updates = ['estado' => 'PAGADO', 'fecha_pago' => now()->toDateString()];
+                if ($libelulaTransactionId && !$pago->libelula_uuid) {
+                    $updates['libelula_uuid'] = $libelulaTransactionId;
+                }
+                $pago->update($updates);
 
-                // Marcar la cuota asociada como Pagada
                 if ($pago->cuota_id) {
                     Cuota::where('id', $pago->cuota_id)->update(['estado' => 'Pagada']);
                 }
             }
 
             DB::commit();
+            Log::info('Callback: pagos confirmados', ['count' => $pagos->count(), 'nuestro_id' => $nuestroId]);
             return response()->json(['ok' => true, 'pagos_actualizados' => $pagos->count()]);
 
         } catch (\Exception $e) {

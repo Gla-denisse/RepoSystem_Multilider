@@ -33,10 +33,11 @@ class LandingController extends Controller
         $asesores = Asesor::where('estado', true)->get();
 
         return response()->json([
-            'empresa' => $empresa,
+            'empresa'                => $empresa,
             'propiedades_destacadas' => $propiedadesDestacadas,
-            'ultimas_propiedades' => $ultimasPropiedades,
-            'asesores' => $asesores
+            'ultimas_propiedades'    => $ultimasPropiedades,
+            'asesores'               => $asesores,
+            'libelula_enabled'       => (int) env('LIBELULA_ENABLED', 1),
         ], 200);
     }
 

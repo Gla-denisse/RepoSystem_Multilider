@@ -27,6 +27,8 @@ class Pago extends Model
         'apellidos_pagador',
         'correo_pagador',
         'id_transaccion_libelula',
+        'libelula_uuid',
+        'codigo_recaudacion_libelula',
     ];
 
     protected $casts = [
