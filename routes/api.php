@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\MetodoPagoController;
 use App\Http\Controllers\Api\CuentaBancariaController;
 use App\Http\Controllers\Api\MetodoPagoCuentaDefaultController;
 use App\Http\Controllers\Api\PagoPublicoController;
+use App\Http\Controllers\Api\ProfileController;
 
 /*
 |--------------------------------------------------------------------------
@@ -62,6 +63,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Rutas de Autenticación
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+
+    // Perfil del usuario autenticado
+    Route::get('/perfil', [ProfileController::class, 'show']);
+    Route::put('/perfil', [ProfileController::class, 'update']);
+    Route::put('/perfil/cambiar-password', [ProfileController::class, 'changePassword']);
 
     Route::apiResource('usuarios', UserController::class);
     Route::get('usuarios/{id}/asignaciones', [UserController::class, 'getAsignaciones']);
