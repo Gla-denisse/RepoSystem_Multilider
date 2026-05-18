@@ -12,18 +12,21 @@ class PropiedadController extends Controller
     public function index(Request $request)
     {
         $query = Propiedad::with([
-            'propietario',
+            'propietarios',
             'sectorUrbano.distrito.ciudad',
             'ubicacion',
             'caracteristicas',
-            'imagenes'
+            'imagenes',
         ]);
 
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('codigo', 'LIKE', "%{$search}%")
-                  ->orWhereHas('propietario', fn($s) => $s->where('nombre_completo', 'LIKE', "%{$search}%"));
+                  ->orWhereHas('propietarios', fn($s) =>
+                      $s->where('nombre_completo', 'LIKE', "%{$search}%")
+                        ->orWhere('nombre_empresa', 'LIKE', "%{$search}%")
+                  );
             });
         }
 
@@ -42,7 +45,8 @@ class PropiedadController extends Controller
     public function store(Request $request)
     {
         $validatedData = $request->validate([
-            'propietario_id'          => 'required|exists:propietarios,id',
+            'propietario_ids'         => 'required|array|min:1',
+            'propietario_ids.*'       => 'integer|exists:propietarios,id',
             'sector_urbano_id'        => 'required|exists:sectores_urbanos,id',
             'ubicacion_id'            => 'nullable|exists:ubicaciones,id|unique:propiedades,ubicacion_id',
             'tipo'                    => 'required|string|max:100',
@@ -72,13 +76,15 @@ class PropiedadController extends Controller
             return DB::transaction(function () use ($validatedData, $request) {
                 $propiedad = Propiedad::create($validatedData);
 
+                $propiedad->propietarios()->sync($request->propietario_ids);
+
                 if ($request->has('caracteristicas')) {
                     $propiedad->caracteristicas()->sync($request->caracteristicas);
                 }
 
                 return response()->json([
                     'message' => 'Propiedad registrada correctamente',
-                    'data'    => $propiedad->load(['propietario', 'sectorUrbano.distrito.ciudad', 'caracteristicas', 'imagenes'])
+                    'data'    => $propiedad->load(['propietarios', 'sectorUrbano.distrito.ciudad', 'caracteristicas', 'imagenes']),
                 ], 201);
             });
         } catch (\Exception $e) {
@@ -89,11 +95,11 @@ class PropiedadController extends Controller
     public function show($id)
     {
         $propiedad = Propiedad::with([
-            'propietario',
+            'propietarios',
             'sectorUrbano.distrito.ciudad',
             'ubicacion',
             'caracteristicas',
-            'imagenes'
+            'imagenes',
         ])->findOrFail($id);
 
         return response()->json($propiedad, 200);
@@ -104,7 +110,8 @@ class PropiedadController extends Controller
         $propiedad = Propiedad::findOrFail($id);
 
         $validatedData = $request->validate([
-            'propietario_id'          => 'required|exists:propietarios,id',
+            'propietario_ids'         => 'required|array|min:1',
+            'propietario_ids.*'       => 'integer|exists:propietarios,id',
             'sector_urbano_id'        => 'required|exists:sectores_urbanos,id',
             'ubicacion_id'            => 'nullable|exists:ubicaciones,id|unique:propiedades,ubicacion_id,' . $propiedad->id,
             'tipo'                    => 'required|string|max:100',
@@ -134,13 +141,15 @@ class PropiedadController extends Controller
             return DB::transaction(function () use ($propiedad, $validatedData, $request) {
                 $propiedad->update($validatedData);
 
+                $propiedad->propietarios()->sync($request->propietario_ids);
+
                 if ($request->has('caracteristicas')) {
                     $propiedad->caracteristicas()->sync($request->caracteristicas);
                 }
 
                 return response()->json([
                     'message' => 'Propiedad actualizada',
-                    'data'    => $propiedad->load(['propietario', 'sectorUrbano.distrito.ciudad', 'caracteristicas', 'imagenes'])
+                    'data'    => $propiedad->load(['propietarios', 'sectorUrbano.distrito.ciudad', 'caracteristicas', 'imagenes']),
                 ], 200);
             });
         } catch (\Exception $e) {
@@ -171,7 +180,7 @@ class PropiedadController extends Controller
             $propiedad->caracteristicas()->sync($validatedData['caracteristica_ids']);
             return response()->json([
                 'message' => 'Características sincronizadas correctamente',
-                'data'    => $propiedad->load('caracteristicas')
+                'data'    => $propiedad->load('caracteristicas'),
             ], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Error al sincronizar: ' . $e->getMessage()], 500);

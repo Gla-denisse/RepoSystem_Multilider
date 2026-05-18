@@ -17,11 +17,16 @@ use App\Models\SectorUrbano;
 use App\Models\Caracteristica;
 use App\Models\Ubicacion;
 use App\Models\Propiedad;
+use App\Models\ImagenPropiedad;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class DatosPruebaSeeder extends Seeder
 {
     public function run(): void
     {
+        // ... (rest of the run method until Propiedad 1)
+
         // ==========================================
         // 1. POBLAR ASESORES (Vinculados a los usuarios)
         // ==========================================
@@ -92,9 +97,12 @@ class DatosPruebaSeeder extends Seeder
         // 3. POBLAR PROPIETARIOS
         // ==========================================
         $propietario1 = Propietario::firstOrCreate(
-            ['ci' => '10203040'],
+            ['nombre_empresa' => 'Inversiones Inmobiliarias S.A.'],
             [
-                'lugar_expedicion' => 'SC', 'nombre_completo' => 'Inversiones Inmobiliarias S.A.',
+                'tipo' => 'empresa',
+                'nombre_completo' => 'Juan Carlos Méndez',
+                'nombre_empresa' => 'Inversiones Inmobiliarias S.A.',
+                'nit' => '10203040001',
                 'telefono' => '33445566', 'correo' => 'gerencia@inversiones.com.bo',
                 'direccion' => 'Edificio Empresarial, Piso 5', 'estado' => true
             ]
@@ -103,8 +111,10 @@ class DatosPruebaSeeder extends Seeder
         $propietario2 = Propietario::firstOrCreate(
             ['ci' => '40302010'],
             [
-                'lugar_expedicion' => 'LP', 'nombre_completo' => 'Grupo Constructor El Bosque',
-                'telefono' => '22334455', 'correo' => 'ventas@elbosque.com',
+                'tipo' => 'persona_natural',
+                'ci' => '40302010',
+                'lugar_expedicion' => 'LP', 'nombre_completo' => 'Mario Alejandro Flores',
+                'telefono' => '22334455', 'correo' => 'mflores@elbosque.com',
                 'direccion' => 'Av. Las Americas #123', 'estado' => true
             ]
         );
@@ -156,11 +166,10 @@ class DatosPruebaSeeder extends Seeder
         $casaWarnes = Propiedad::firstOrCreate(
             ['codigo' => 'CASA-WAR-001'],
             [
-                'propietario_id' => $propietario1->id,
                 'sector_urbano_id' => $sectorJuanPablo->id,
                 'ubicacion_id' => $ubi1->id,
-                'tipo' => 'Casa', 
-                'precio_venta' => 47000.00, 
+                'tipo' => 'Casa',
+                'precio_venta' => 47000.00,
                 'moneda' => 'USD',
                 'superficie_m2' => 300.00,
                 'superficie_construida_m2' => 78.00,
@@ -168,10 +177,11 @@ class DatosPruebaSeeder extends Seeder
                 'banos' => 2,
                 'es_esquina' => false,
                 'direccion' => 'Calle Principal Sur',
-                'estado' => 'Disponible', 
+                'estado' => 'Disponible',
                 'activo' => true
             ]
         );
+        $casaWarnes->propietarios()->sync([$propietario1->id]);
         $casaWarnes->caracteristicas()->sync([$cGas->id, $cLavanderia->id, $cTransporte->id]);
 
         // Propiedad 2: Lote en Montero
@@ -187,14 +197,12 @@ class DatosPruebaSeeder extends Seeder
         $loteMontero = Propiedad::firstOrCreate(
             ['codigo' => 'LOTE-MON-001'],
             [
-                'propietario_id' => $propietario2->id,
                 'sector_urbano_id' => $sectorVillaEsterita->id,
                 'ubicacion_id' => $ubi2->id,
-                'tipo' => 'Lote', 
-                'precio_venta' => 13500.00, 
+                'tipo' => 'Lote',
+                'precio_venta' => 13500.00,
                 'moneda' => 'USD',
                 'superficie_m2' => 450.00,
-                'superficie_construida_m2' => 0.00,
                 'frente_mts' => 15.00,
                 'fondo_mts' => 30.00,
                 'habitaciones' => 0,
@@ -204,10 +212,62 @@ class DatosPruebaSeeder extends Seeder
                 'nro_lote' => '1',
                 'colinda_norte' => 'Lote 2',
                 'colinda_este' => 'Avenida Principal',
-                'estado' => 'Disponible', 
+                'estado' => 'Disponible',
                 'activo' => true
             ]
         );
+        $loteMontero->propietarios()->sync([$propietario2->id]);
         $loteMontero->caracteristicas()->sync([$cTransporte->id, $cAreasVerdes->id, $cColegio->id]);
+
+        // ==========================================
+        // 6. POBLAR IMÁGENES (Vincular con el servidor)
+        // ==========================================
+        $this->crearImagenesPrueba($casaWarnes);
+        $this->crearImagenesPrueba($loteMontero);
+    }
+
+    /**
+     * Crea imágenes de prueba descargándolas de un servicio placeholder
+     * y guardándolas en el storage del servidor.
+     */
+    private function crearImagenesPrueba(Propiedad $propiedad, $cantidad = 3)
+    {
+        // Solo crear si la propiedad no tiene imágenes
+        if ($propiedad->imagenes()->count() > 0) {
+            return;
+        }
+
+        $folder = "propiedades/{$propiedad->id}";
+        
+        // Asegurar que el directorio existe
+        if (!Storage::disk('public')->exists($folder)) {
+            Storage::disk('public')->makeDirectory($folder);
+        }
+
+        for ($i = 0; $i < $cantidad; $i++) {
+            try {
+                // Descargar una imagen aleatoria (casa o terreno según el tipo)
+                $keywords = $propiedad->tipo === 'Casa' ? 'house,architecture' : 'land,field';
+                $imageUrl = "https://loremflickr.com/800/600/{$keywords}?lock=" . ($propiedad->id + $i);
+                
+                $imageContent = file_get_contents($imageUrl);
+                
+                if ($imageContent) {
+                    $fileName = Str::random(40) . '.jpg';
+                    $path = "{$folder}/{$fileName}";
+                    
+                    Storage::disk('public')->put($path, $imageContent);
+
+                    ImagenPropiedad::create([
+                        'propiedad_id' => $propiedad->id,
+                        'url' => $path,
+                        'es_principal' => ($i === 0) // La primera es la principal
+                    ]);
+                }
+            } catch (\Exception $e) {
+                // Si falla la descarga (ej. sin internet), ignorar
+                logger()->error("Error al descargar imagen para propiedad {$propiedad->id}: " . $e->getMessage());
+            }
+        }
     }
 }

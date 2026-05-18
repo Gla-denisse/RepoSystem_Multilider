@@ -5,81 +5,87 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Propietario;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class PropietarioController extends Controller
 {
-    // 1. Obtener todos los propietarios
-    public function index(Request $request) {
+    public function index(Request $request)
+    {
         $query = Propietario::query();
 
-        if ($request->has('search') && $request->search != '') {
+        if ($request->filled('search')) {
             $search = $request->search;
-            $query->where('nombre_completo', 'LIKE', "%{$search}%")
-                  ->orWhere('ci', 'LIKE', "%{$search}%");
+            $query->where(function ($q) use ($search) {
+                $q->where('nombre_completo', 'LIKE', "%{$search}%")
+                  ->orWhere('ci', 'LIKE', "%{$search}%")
+                  ->orWhere('nombre_empresa', 'LIKE', "%{$search}%")
+                  ->orWhere('nit', 'LIKE', "%{$search}%");
+            });
         }
 
-        // Paginamos de a 10 registros por página
-        $perPage = $request->input('per_page', 10);
-        
-        // Retorna un objeto de paginación (incluye links, current_page, y la 'data')
-        $propietarios = $query->orderBy('id', 'desc')->paginate($perPage);
+        if ($request->filled('tipo')) {
+            $query->where('tipo', $request->tipo);
+        }
 
-        return response()->json($propietarios, 200);
+        $perPage = $request->input('per_page', 10);
+        return response()->json($query->orderBy('id', 'desc')->paginate($perPage), 200);
     }
 
-    // 2. Crear un nuevo propietario
-    public function store(Request $request) {
+    public function store(Request $request)
+    {
         $validatedData = $request->validate([
-            'ci' => 'required|string|max:50|unique:propietarios,ci',
+            'tipo'             => 'required|in:persona_natural,empresa',
+            'ci'               => ['nullable', 'string', 'max:50', Rule::unique('propietarios', 'ci')->whereNotNull('ci')],
             'lugar_expedicion' => 'nullable|string|max:20',
-            'nombre_completo' => 'required|string|max:255',
-            'telefono' => 'nullable|string|max:50',
-            'correo' => 'nullable|email|max:255',
-            'direccion' => 'nullable|string|max:255',
-            'estado' => 'nullable|boolean'
+            'nombre_completo'  => 'required|string|max:255',
+            'nombre_empresa'   => 'nullable|string|max:255|required_if:tipo,empresa',
+            'nit'              => 'nullable|string|max:50',
+            'telefono'         => 'nullable|string|max:50',
+            'correo'           => 'nullable|email|max:255',
+            'direccion'        => 'nullable|string|max:255',
+            'estado'           => 'nullable|boolean',
         ]);
 
         $propietario = Propietario::create($validatedData);
-        
+
         return response()->json(['message' => 'Propietario registrado con éxito', 'data' => $propietario], 201);
     }
 
-    // 3. Mostrar un propietario específico
-    public function show($id) {
-        $propietario = Propietario::findOrFail($id);
+    public function show($id)
+    {
+        $propietario = Propietario::with('propiedades')->findOrFail($id);
         return response()->json($propietario, 200);
     }
 
-    // 4. Actualizar un propietario
-    public function update(Request $request, $id) {
+    public function update(Request $request, $id)
+    {
         $propietario = Propietario::findOrFail($id);
 
         $validatedData = $request->validate([
-            // Ignoramos el CI actual para que no marque error de duplicado si no se modificó
-            'ci' => 'required|string|max:50|unique:propietarios,ci,' . $propietario->id,
+            'tipo'             => 'required|in:persona_natural,empresa',
+            'ci'               => ['nullable', 'string', 'max:50', Rule::unique('propietarios', 'ci')->ignore($propietario->id)->whereNotNull('ci')],
             'lugar_expedicion' => 'nullable|string|max:20',
-            'nombre_completo' => 'required|string|max:255',
-            'telefono' => 'nullable|string|max:50',
-            'correo' => 'nullable|email|max:255',
-            'direccion' => 'nullable|string|max:255',
-            'estado' => 'nullable|boolean'
+            'nombre_completo'  => 'required|string|max:255',
+            'nombre_empresa'   => 'nullable|string|max:255|required_if:tipo,empresa',
+            'nit'              => 'nullable|string|max:50',
+            'telefono'         => 'nullable|string|max:50',
+            'correo'           => 'nullable|email|max:255',
+            'direccion'        => 'nullable|string|max:255',
+            'estado'           => 'nullable|boolean',
         ]);
 
         $propietario->update($validatedData);
-        
+
         return response()->json(['message' => 'Datos del propietario actualizados', 'data' => $propietario], 200);
     }
 
-    // 5. Activar / Desactivar propietario (Toggle)
-    public function destroy($id) {
+    public function destroy($id)
+    {
         $propietario = Propietario::findOrFail($id);
-        
-        // Invertimos el estado actual
         $propietario->estado = !$propietario->estado;
         $propietario->save();
 
         $mensaje = $propietario->estado ? 'Propietario activado correctamente' : 'Propietario desactivado correctamente';
-
         return response()->json(['message' => $mensaje, 'estado' => $propietario->estado], 200);
     }
 }

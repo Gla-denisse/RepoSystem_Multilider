@@ -12,18 +12,20 @@ class Propietario extends Model
     protected $table = 'propietarios';
 
     protected $fillable = [
+        'tipo',
         'ci',
         'lugar_expedicion',
         'nombre_completo',
+        'nombre_empresa',
+        'nit',
         'telefono',
         'correo',
         'direccion',
-        'estado'
+        'estado',
     ];
 
-    // Relación: Un propietario tiene muchas propiedades
     public function propiedades()
     {
-        return $this->hasMany(Propiedad::class, 'propietario_id');
+        return $this->belongsToMany(Propiedad::class, 'propiedad_propietario');
     }
 }

@@ -12,25 +12,23 @@ class Propiedad extends Model
     protected $table = 'propiedades';
 
     protected $fillable = [
-        'propietario_id', 'sector_urbano_id', 'ubicacion_id', 'codigo', 'tipo',
+        'sector_urbano_id', 'ubicacion_id', 'codigo', 'tipo',
         'precio_venta', 'moneda', 'superficie_m2', 'superficie_construida_m2',
         'frente_mts', 'fondo_mts', 'habitaciones', 'banos', 'es_esquina',
         'direccion', 'nro_lote', 'colinda_norte', 'colinda_sur',
-        'colinda_este', 'colinda_oeste', 'estado', 'activo', 'es_destacado'
+        'colinda_este', 'colinda_oeste', 'estado', 'activo', 'es_destacado',
     ];
+
+    public function propietarios()
+    {
+        return $this->belongsToMany(Propietario::class, 'propiedad_propietario');
+    }
 
     public function sectorUrbano()
     {
         return $this->belongsTo(SectorUrbano::class, 'sector_urbano_id');
     }
 
-    // Relación: Muchas propiedades pertenecen a un Propietario
-    public function propietario()
-    {
-        return $this->belongsTo(Propietario::class, 'propietario_id');
-    }
-
-    // Relación 1 a 1 con Ubicación (GPS)
     public function ubicacion()
     {
         return $this->belongsTo(Ubicacion::class, 'ubicacion_id');
