@@ -62,7 +62,45 @@ Route::get('/landing/sectores-urbanos/{distritoId}', [LandingController::class, 
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
-    
+
+    // Utilidad: resolver URL acortada de Google Maps
+    Route::get('/resolver-url-mapa', function (Illuminate\Http\Request $request) {
+        $url = $request->get('url', '');
+        if (!$url) {
+            return response()->json(['error' => 'URL requerida'], 422);
+        }
+        try {
+            $client = new \GuzzleHttp\Client([
+                'allow_redirects' => ['max' => 10, 'track_redirects' => true],
+                'timeout' => 10,
+                'headers' => ['User-Agent' => 'Mozilla/5.0 (compatible; MapResolver/1.0)'],
+            ]);
+            $response = $client->get($url);
+            $history  = $response->getHeader(\GuzzleHttp\RedirectMiddleware::HISTORY_HEADER);
+            $finalUrl = !empty($history) ? end($history) : $url;
+
+            // Formato @lat,lng (Google Maps vista estándar)
+            if (preg_match('/@(-?\d+\.?\d*),(-?\d+\.?\d*)/', $finalUrl, $m)) {
+                return response()->json(['lat' => (float)$m[1], 'lng' => (float)$m[2], 'url' => $finalUrl]);
+            }
+            // Formato /maps/search/lat,+lng o /maps/search/lat,-lng (URL acortada resuelta)
+            if (preg_match('~/maps/search/(-?\d+\.?\d*),\+?(-?\d+\.?\d*)~', $finalUrl, $m)) {
+                return response()->json(['lat' => (float)$m[1], 'lng' => (float)$m[2], 'url' => $finalUrl]);
+            }
+            // Formato ?q=lat,lng o &q=lat,lng
+            if (preg_match('/[?&]q=(-?\d+\.?\d*),\+?(-?\d+\.?\d*)/', $finalUrl, $m)) {
+                return response()->json(['lat' => (float)$m[1], 'lng' => (float)$m[2], 'url' => $finalUrl]);
+            }
+            // Formato /place/lat,lng en la ruta
+            if (preg_match('~/place/[^/]*/(-?\d+\.?\d*),\+?(-?\d+\.?\d*)~', $finalUrl, $m)) {
+                return response()->json(['lat' => (float)$m[1], 'lng' => (float)$m[2], 'url' => $finalUrl]);
+            }
+            return response()->json(['error' => 'No se pudieron extraer coordenadas de la URL resuelta.', 'url' => $finalUrl], 422);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error al resolver la URL: ' . $e->getMessage()], 500);
+        }
+    });
+
     // Rutas de Autenticación
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
@@ -130,6 +168,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Route::post('pagos/reportes/periodo', [PagoController::class, 'reportePeriodo']);
         Route::get('pagos/pendientes/listar', [PagoController::class, 'pagosPendientes']);
         Route::post('pagos/{id}/procesar', [PagoController::class, 'procesarPagoPendiente']);
+        Route::get('pagos/{id}/comprobante', [PagoController::class, 'comprobante']);
     });
     
     // Ruta de reportes podría tener un permiso más específico si se desea,

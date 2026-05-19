@@ -50,7 +50,6 @@ class PropiedadController extends Controller
             'sector_urbano_id'        => 'required|exists:sectores_urbanos,id',
             'ubicacion_id'            => 'nullable|exists:ubicaciones,id|unique:propiedades,ubicacion_id',
             'tipo'                    => 'required|string|max:100',
-            'codigo'                  => 'required|string|max:100|unique:propiedades,codigo',
             'precio_venta'            => 'required|numeric|min:0',
             'moneda'                  => 'required|in:USD,BOB',
             'superficie_m2'           => 'required|numeric|min:0',
@@ -75,6 +74,10 @@ class PropiedadController extends Controller
         try {
             return DB::transaction(function () use ($validatedData, $request) {
                 $propiedad = Propiedad::create($validatedData);
+
+                // Asignar código correlativo basado en el ID (sin duplicados posibles)
+                $propiedad->codigo = str_pad($propiedad->id, 4, '0', STR_PAD_LEFT);
+                $propiedad->save();
 
                 $propiedad->propietarios()->sync($request->propietario_ids);
 
@@ -115,7 +118,7 @@ class PropiedadController extends Controller
             'sector_urbano_id'        => 'required|exists:sectores_urbanos,id',
             'ubicacion_id'            => 'nullable|exists:ubicaciones,id|unique:propiedades,ubicacion_id,' . $propiedad->id,
             'tipo'                    => 'required|string|max:100',
-            'codigo'                  => 'required|string|max:100|unique:propiedades,codigo,' . $propiedad->id,
+            'codigo'                  => 'nullable|string|max:100|unique:propiedades,codigo,' . $propiedad->id,
             'precio_venta'            => 'required|numeric|min:0',
             'moneda'                  => 'required|in:USD,BOB',
             'superficie_m2'           => 'required|numeric|min:0',

@@ -20,7 +20,7 @@ class NotaVentaController extends Controller
     // 1. Listar todas las ventas
     // 1. Listar ventas (CON FILTROS AVANZADOS)
     public function index(Request $request) {
-        $query = NotaVenta::with(['asesor', 'cliente', 'propiedad.propietario', 'propiedad.sectorUrbano.distrito.ciudad', 'pagos.metodoPago']);
+        $query = NotaVenta::with(['asesor', 'cliente', 'propiedad.propietarios', 'propiedad.sectorUrbano.distrito.ciudad', 'pagos.metodoPago']);
 
         // Filtro por Fechas
         if ($request->filled('fecha_inicio') && $request->filled('fecha_fin')) {
@@ -66,6 +66,7 @@ class NotaVentaController extends Controller
             'numero_cuotas'  => 'required_if:tipo_venta,CREDITO|nullable|integer|min:1',
             'tasa_interes'   => 'required_if:tipo_venta,CREDITO|nullable|numeric|min:0',
             'fecha_inicio_pago' => 'required_if:tipo_venta,CREDITO|nullable|date',
+            'metodo_pago_id'   => 'nullable|exists:metodos_pago,id',
         ]);
 
         try {
@@ -87,12 +88,13 @@ class NotaVentaController extends Controller
 
             $propiedad->update(['estado' => 'Vendido']);
 
-            // 2. 🌟 REGISTRAR PAGO COMO PENDIENTE DE PAGO
+            // 2. REGISTRAR PAGO COMO PENDIENTE DE PAGO
+            $metodoPagoId = $validatedData['metodo_pago_id'] ?? null;
             if ($venta->tipo_venta === 'CONTADO') {
                 Pago::create([
                     'nota_venta_id'  => $venta->id,
                     'cuota_id'       => null,
-                    'metodo_pago_id' => null,
+                    'metodo_pago_id' => $metodoPagoId,
                     'cuenta_id'      => null,
                     'concepto_pago'  => 'VENTA_CONTADO',
                     'fecha_pago'     => null,
@@ -104,7 +106,7 @@ class NotaVentaController extends Controller
                 Pago::create([
                     'nota_venta_id'  => $venta->id,
                     'cuota_id'       => null,
-                    'metodo_pago_id' => null,
+                    'metodo_pago_id' => $metodoPagoId,
                     'cuenta_id'      => null,
                     'concepto_pago'  => 'CUOTA_INICIAL',
                     'fecha_pago'     => null,
@@ -139,7 +141,8 @@ class NotaVentaController extends Controller
 
             // 5. EGRESO AUTOMÁTICO DE COMISIÓN (estado PENDIENTE hasta que se desembolse)
             if ($montoComision > 0) {
-                $moneda = $propiedad->moneda ?? 'Bs';
+                $monedaMap = ['BOB' => 'Bs', 'USD' => '$'];
+                $moneda = $monedaMap[$propiedad->moneda] ?? 'Bs';
                 Egreso::create([
                     'fecha'         => $venta->fecha,
                     'concepto'      => 'Comisión de venta - ' . $asesor->nombre_completo . ' (Venta #' . $venta->id . ')',
@@ -168,7 +171,7 @@ class NotaVentaController extends Controller
         $venta = NotaVenta::with([
             'asesor',
             'cliente',
-            'propiedad.propietario',
+            'propiedad.propietarios',
             'propiedad.sectorUrbano.distrito.ciudad',
             'planPago.cuotas',
             'pagos.metodoPago'

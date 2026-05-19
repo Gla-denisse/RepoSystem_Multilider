@@ -7,15 +7,17 @@ use App\Models\Pago;
 use App\Models\NotaVenta;
 use App\Models\Cuota;
 use App\Models\Ingreso;
+use App\Models\MiEmpresa;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Mpdf\Mpdf;
 
 class PagoController extends Controller
 {
     // 1. Listar pagos con filtros
     public function index(Request $request)
     {
-        $query = Pago::with(['notaVenta.cliente', 'cuota.planPago']);
+        $query = Pago::with(['notaVenta.cliente', 'cuota.planPago', 'metodoPago', 'cuenta']);
 
         // Filtro por Fechas
         if ($request->filled('fecha_inicio') && $request->filled('fecha_fin')) {
@@ -46,6 +48,15 @@ class PagoController extends Controller
         if ($request->filled('cliente_id')) {
             $query->whereHas('notaVenta', function ($q) use ($request) {
                 $q->where('cliente_id', $request->cliente_id);
+            });
+        }
+
+        // Búsqueda por nombre o CI del cliente
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->whereHas('notaVenta.cliente', function ($q) use ($search) {
+                $q->where('nombre_completo', 'LIKE', "%{$search}%")
+                  ->orWhere('ci', 'LIKE', "%{$search}%");
             });
         }
 
@@ -432,8 +443,9 @@ class PagoController extends Controller
     // Helper: crea un Ingreso automático a partir de un Pago confirmado
     private function crearIngresoDesde(Pago $pago): void
     {
-        // Derivar moneda desde la propiedad de la venta
-        $moneda = $pago->notaVenta?->propiedad?->moneda ?? 'Bs';
+        // Derivar moneda desde la propiedad (BOB→Bs, USD→$)
+        $monedaMap = ['BOB' => 'Bs', 'USD' => '$'];
+        $moneda = $monedaMap[$pago->notaVenta?->propiedad?->moneda] ?? 'Bs';
 
         $categoriaMap = [
             'VENTA_CONTADO' => 'VENTA_CONTADO',
@@ -460,17 +472,222 @@ class PagoController extends Controller
     public function pagosPendientes(Request $request)
     {
         $query = Pago::where('estado', 'PENDIENTE_PAGO')
-            ->with(['notaVenta.cliente', 'notaVenta.asesor', 'cuota.planPago'])
+            ->with(['notaVenta.cliente', 'notaVenta.asesor', 'cuota.planPago', 'metodoPago'])
             ->orderBy('created_at', 'desc');
 
-        // Filtro por concepto de pago (para separar ventas al contado de cuotas)
         if ($request->filled('concepto_pago')) {
             $query->where('concepto_pago', $request->concepto_pago);
         }
 
-        $perPage = $request->input('per_page', 10);
-        $pagos = $query->paginate($perPage);
+        if ($request->filled('fecha_inicio') && $request->filled('fecha_fin')) {
+            $query->whereBetween('created_at', [
+                $request->fecha_inicio . ' 00:00:00',
+                $request->fecha_fin   . ' 23:59:59',
+            ]);
+        }
 
-        return response()->json($pagos, 200);
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->whereHas('notaVenta.cliente', function ($q) use ($search) {
+                $q->where('nombre_completo', 'LIKE', "%{$search}%")
+                  ->orWhere('ci', 'LIKE', "%{$search}%");
+            });
+        }
+
+        $perPage = $request->input('per_page', 10);
+        return response()->json($query->paginate($perPage), 200);
     }
+
+    // Generar comprobante PDF de un pago procesado
+    public function comprobante($id)
+    {
+        $pago = Pago::with([
+            'notaVenta.cliente',
+            'notaVenta.asesor',
+            'notaVenta.propiedad.sectorUrbano.distrito.ciudad',
+            'metodoPago',
+            'cuenta',
+        ])->findOrFail($id);
+
+        if ($pago->estado !== 'PAGADO') {
+            return response()->json(['message' => 'Solo se puede generar comprobante de pagos confirmados.'], 422);
+        }
+
+        $empresa  = MiEmpresa::first();
+        $html     = $this->buildComprobanteHtml($pago, $empresa);
+
+        $mpdf = new Mpdf([
+            'margin_top'    => 12,
+            'margin_bottom' => 12,
+            'margin_left'   => 15,
+            'margin_right'  => 15,
+            'format'        => 'A5',
+        ]);
+        $mpdf->WriteHTML($html);
+
+        $filename = 'comprobante-pago-' . str_pad($pago->id, 5, '0', STR_PAD_LEFT) . '.pdf';
+
+        return response($mpdf->Output($filename, 'S'))
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+    }
+
+    private function buildComprobanteHtml(Pago $pago, ?MiEmpresa $empresa): string
+    {
+        // Pre-calcular todos los valores para evitar expresiones complejas en el heredoc
+        $empresa_nombre   = $empresa ? $empresa->nombre    : 'Sistema Multilider';
+        $empresa_telefono = $empresa ? ($empresa->telefono  ?? '') : '';
+        $empresa_email    = $empresa ? ($empresa->email     ?? '') : '';
+        $empresa_dir      = $empresa ? ($empresa->direccion ?? '') : '';
+
+        $notaVenta    = $pago->notaVenta;
+        $cliente      = $notaVenta ? $notaVenta->cliente   : null;
+        $propiedad    = $notaVenta ? $notaVenta->propiedad : null;
+
+        $cli_nombre   = $cliente   ? $cliente->nombre_completo      : '-';
+        $cli_ci       = $cliente   ? $cliente->ci                   : '-';
+        $cli_telefono = $cliente   ? ($cliente->telefono ?? '-')     : '-';
+
+        $prop_codigo  = $propiedad ? ($propiedad->codigo ?? '-')     : '-';
+        $prop_tipo    = $propiedad ? ($propiedad->tipo   ?? '-')     : '-';
+        $sector       = ($propiedad && $propiedad->sectorUrbano)
+                            ? $propiedad->sectorUrbano->nombre
+                            : '-';
+        $ciudad       = ($propiedad && $propiedad->sectorUrbano && $propiedad->sectorUrbano->distrito && $propiedad->sectorUrbano->distrito->ciudad)
+                            ? $propiedad->sectorUrbano->distrito->ciudad->nombre
+                            : '';
+        $ubicacion    = $ciudad ? "$sector, $ciudad" : $sector;
+
+        $conceptoMap  = [
+            'VENTA_CONTADO' => 'Pago al Contado',
+            'CUOTA_INICIAL' => 'Cuota Inicial',
+            'CUOTA'         => 'Cuota de Crédito',
+            'OTRO'          => 'Otro',
+        ];
+        $concepto     = isset($conceptoMap[$pago->concepto_pago]) ? $conceptoMap[$pago->concepto_pago] : $pago->concepto_pago;
+        $nroComp      = 'COMP-' . str_pad($pago->id, 5, '0', STR_PAD_LEFT);
+        $nroVenta     = 'VTA-'  . str_pad($pago->nota_venta_id, 5, '0', STR_PAD_LEFT);
+        $fecha        = $pago->fecha_pago ? \Carbon\Carbon::parse($pago->fecha_pago)->format('d/m/Y') : '-';
+        $metodo       = ($pago->metodoPago && $pago->metodoPago->nombre_metodo) ? $pago->metodoPago->nombre_metodo : '-';
+        $cuenta       = ($pago->cuenta    && $pago->cuenta->nombre)             ? $pago->cuenta->nombre             : '-';
+        $observ       = $pago->observaciones ? $pago->observaciones : '-';
+        $monto        = $this->fmt($pago->monto);
+        $generado     = $this->hoy();
+
+        return <<<HTML
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  body { font-family: Arial, sans-serif; font-size: 11px; color: #222; margin: 0; }
+  .header { background: #1a3a5c; color: white; padding: 14px 20px; border-radius: 6px 6px 0 0; }
+  .header h1 { margin: 0 0 2px; font-size: 17px; letter-spacing: 1px; }
+  .header p  { margin: 0; font-size: 9px; opacity: 0.85; }
+  .comp-num  { text-align: right; background: #f0f4f8; padding: 8px 20px; border-bottom: 2px solid #1a3a5c; }
+  .comp-num span { font-size: 14px; font-weight: bold; color: #1a3a5c; }
+  .section   { padding: 10px 20px; border-bottom: 1px solid #e0e0e0; }
+  .section-title { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 6px; font-weight: bold; }
+  .row { display: flex; gap: 20px; }
+  .col { flex: 1; }
+  .label { font-size: 9px; color: #666; margin-bottom: 2px; }
+  .value { font-size: 11px; font-weight: bold; color: #222; }
+  .monto-box { background: #e8f5e9; border: 1.5px solid #27ae60; border-radius: 6px; padding: 10px 20px; text-align: center; margin: 12px 20px; }
+  .monto-box .monto-label { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 1px; }
+  .monto-box .monto-val   { font-size: 22px; font-weight: bold; color: #1b5e20; margin-top: 4px; }
+  .footer { padding: 12px 20px; text-align: center; font-size: 9px; color: #999; }
+  .badge-pagado { display: inline-block; background: #27ae60; color: white; padding: 2px 10px; border-radius: 20px; font-size: 9px; font-weight: bold; letter-spacing: 1px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>$empresa_nombre</h1>
+  <p>$empresa_dir &nbsp;|&nbsp; $empresa_telefono &nbsp;|&nbsp; $empresa_email</p>
+</div>
+
+<div class="comp-num">
+  <span>$nroComp</span> &nbsp;&nbsp;
+  <span class="badge-pagado">PAGADO</span>
+</div>
+
+<div class="section">
+  <div class="section-title">Datos del Cliente</div>
+  <div class="row">
+    <div class="col">
+      <div class="label">Nombre Completo</div>
+      <div class="value">$cli_nombre</div>
+    </div>
+    <div class="col">
+      <div class="label">C.I.</div>
+      <div class="value">$cli_ci</div>
+    </div>
+    <div class="col">
+      <div class="label">Teléfono</div>
+      <div class="value">$cli_telefono</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Detalle de la Venta</div>
+  <div class="row">
+    <div class="col">
+      <div class="label">N° Venta</div>
+      <div class="value">$nroVenta</div>
+    </div>
+    <div class="col">
+      <div class="label">Propiedad</div>
+      <div class="value">$prop_codigo – $prop_tipo</div>
+    </div>
+    <div class="col">
+      <div class="label">Ubicación</div>
+      <div class="value">$ubicacion</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Detalle del Pago</div>
+  <div class="row">
+    <div class="col">
+      <div class="label">Concepto</div>
+      <div class="value">$concepto</div>
+    </div>
+    <div class="col">
+      <div class="label">Fecha de Pago</div>
+      <div class="value">$fecha</div>
+    </div>
+  </div>
+  <div class="row" style="margin-top:8px;">
+    <div class="col">
+      <div class="label">Método de Pago</div>
+      <div class="value">$metodo</div>
+    </div>
+    <div class="col">
+      <div class="label">Cuenta / Destino</div>
+      <div class="value">$cuenta</div>
+    </div>
+    <div class="col">
+      <div class="label">Observaciones</div>
+      <div class="value">$observ</div>
+    </div>
+  </div>
+</div>
+
+<div class="monto-box">
+  <div class="monto-label">Monto Pagado</div>
+  <div class="monto-val">Bs. $monto</div>
+</div>
+
+<div class="footer">
+  Este comprobante es válido como constancia de pago. &nbsp;|&nbsp; Generado el $generado
+</div>
+</body>
+</html>
+HTML;
+    }
+
+    private function pad($n, $len = 5): string { return str_pad((int)$n, $len, '0', STR_PAD_LEFT); }
+    private function fmt($v): string { return number_format((float)$v, 2, '.', ','); }
+    private function hoy(): string { return \Carbon\Carbon::now()->format('d/m/Y H:i'); }
 }
