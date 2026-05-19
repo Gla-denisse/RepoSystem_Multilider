@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\PagoPublicoController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\IngresoController;
 use App\Http\Controllers\Api\EgresoController;
+use App\Http\Controllers\Api\ComisionAsesorController;
 
 /*
 |--------------------------------------------------------------------------
@@ -154,6 +155,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('egresos/{id}', [EgresoController::class, 'update']);
         Route::put('egresos/{id}/pagar', [EgresoController::class, 'pagar']);
         Route::put('egresos/{id}/anular', [EgresoController::class, 'anular']);
+
+        // Módulo de Comisiones de Asesores
+        Route::get('comisiones-asesores', [ComisionAsesorController::class, 'index']);
+        Route::get('comisiones-asesores/{asesorId}/impagas', [ComisionAsesorController::class, 'impagas']);
+        Route::get('comisiones-asesores/{asesorId}/pagadas', [ComisionAsesorController::class, 'pagadas']);
+        Route::get('comisiones-asesores/egreso/{egresoId}/comprobante', [ComisionAsesorController::class, 'comprobante']);
     });
 
 });

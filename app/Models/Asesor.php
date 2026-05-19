@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Egreso;
 
 class Asesor extends Model
 {
@@ -22,9 +23,13 @@ class Asesor extends Model
         'porcentaje_comision'
     ];
 
-    // Relación Inversa: Un asesor pertenece a un usuario
     public function usuario()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function egresos()
+    {
+        return $this->hasMany(Egreso::class, 'asesor_id');
     }
 }
