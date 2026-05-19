@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\IngresoController;
 use App\Http\Controllers\Api\EgresoController;
 use App\Http\Controllers\Api\ComisionAsesorController;
 use App\Http\Controllers\Api\ReprogramacionController;
+use App\Http\Controllers\Api\DashboardController;
 
 /*
 |--------------------------------------------------------------------------
@@ -105,6 +106,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Rutas de Autenticación
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+
+    // Dashboard
+    Route::get('dashboard/admin', [DashboardController::class, 'admin']);
+    Route::get('dashboard/asesor', [DashboardController::class, 'asesor']);
 
     // Perfil del usuario autenticado
     Route::get('/perfil', [ProfileController::class, 'show']);
