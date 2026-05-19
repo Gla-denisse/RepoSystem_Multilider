@@ -8,19 +8,25 @@ use App\Models\MetodoPago;
 
 class MetodoPagoSeeder extends Seeder
 {
+    // Métodos activos en el sistema
+    private array $activos = [
+        'Efectivo',
+        'Transacción QR',
+        'Pasarela de Pago',
+    ];
+
     public function run(): void
     {
-        $metodos = [
-            ['nombre_metodo' => 'Efectivo', 'estado' => 'Activo'],
-            ['nombre_metodo' => 'Transferencia Bancaria', 'estado' => 'Activo'],
-            ['nombre_metodo' => 'Cheque', 'estado' => 'Activo'],
-            ['nombre_metodo' => 'Tarjeta de Crédito', 'estado' => 'Activo'],
-            ['nombre_metodo' => 'Depósito Bancario', 'estado' => 'Activo'],
-            ['nombre_metodo' => 'Letra de Cambio', 'estado' => 'Activo'],
-        ];
-
-        foreach ($metodos as $metodo) {
-            MetodoPago::create($metodo);
+        // Crear o activar los métodos válidos
+        foreach ($this->activos as $nombre) {
+            MetodoPago::updateOrCreate(
+                ['nombre_metodo' => $nombre],
+                ['estado' => 'Activo']
+            );
         }
+
+        // Desactivar cualquier otro método que exista en la DB
+        MetodoPago::whereNotIn('nombre_metodo', $this->activos)
+            ->update(['estado' => 'Inactivo']);
     }
 }

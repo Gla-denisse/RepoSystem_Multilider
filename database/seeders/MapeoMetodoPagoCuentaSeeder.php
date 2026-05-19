@@ -19,14 +19,11 @@ class MapeoMetodoPagoCuentaSeeder extends Seeder
         $metodos = MetodoPago::all();
         $cuentas = CuentaBancaria::where('mi_empresa_id', $empresa->id)->get();
 
-        // Mapeos por defecto
+        // Cada método de pago tiene su cuenta exclusiva
         $mapeos = [
-            'Efectivo' => 'Caja Principal',
-            'Transferencia Bancaria' => 'Cuenta Corriente BCP',
-            'Cheque' => 'Cuenta Corriente BCP',
-            'Tarjeta de Crédito' => 'Stripe',
-            'Depósito Bancario' => 'Cuenta de Ahorros BCP',
-            'Letra de Cambio' => 'Cuenta Corriente BCP',
+            'Efectivo'         => 'Caja Principal',
+            'Transacción QR'   => 'Cuenta QR Bancaria',
+            'Pasarela de Pago' => 'Pasarela de Pago',
         ];
 
         foreach ($mapeos as $nombreMetodo => $nombreCuenta) {
@@ -34,10 +31,10 @@ class MapeoMetodoPagoCuentaSeeder extends Seeder
             $cuenta = $cuentas->firstWhere('nombre', $nombreCuenta);
 
             if ($metodo && $cuenta) {
-                MetodoPagoCuentaDefault::firstOrCreate(
+                MetodoPagoCuentaDefault::updateOrCreate(
                     [
-                        'mi_empresa_id' => $empresa->id,
-                        'metodo_pago_id' => $metodo->id
+                        'mi_empresa_id'   => $empresa->id,
+                        'metodo_pago_id'  => $metodo->id,
                     ],
                     ['cuenta_bancaria_id' => $cuenta->id]
                 );
