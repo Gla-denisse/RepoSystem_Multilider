@@ -8,7 +8,7 @@ class Cuota extends Model
 {
     use HasFactory;
     protected $table = 'cuotas';
-    protected $fillable = ['plan_pago_id', 'numero_cuota', 'fecha_vencimiento', 'monto_cuota', 'monto_interes', 'monto_capital', 'saldo_capital', 'estado'];
+    protected $fillable = ['plan_pago_id', 'numero_cuota', 'fecha_vencimiento', 'monto_cuota', 'monto_interes', 'monto_capital', 'saldo_capital', 'estado', 'reprogramacion_id'];
 
     protected $casts = [
         'fecha_vencimiento' => 'date',
@@ -24,5 +24,9 @@ class Cuota extends Model
 
     public function pagos() {
         return $this->hasMany(Pago::class, 'cuota_id');
+    }
+
+    public function reprogramacion() {
+        return $this->belongsTo(Reprogramacion::class, 'reprogramacion_id');
     }
 }

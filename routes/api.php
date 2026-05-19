@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\IngresoController;
 use App\Http\Controllers\Api\EgresoController;
 use App\Http\Controllers\Api\ComisionAsesorController;
+use App\Http\Controllers\Api\ReprogramacionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -149,6 +150,12 @@ Route::middleware('auth:sanctum')->group(function () {
     
     Route::apiResource('ventas', NotaVentaController::class)->except(['destroy', 'update']);
     Route::put('ventas/{id}/anular', [NotaVentaController::class, 'anular']);
+
+    // Planes de Pago: amortización y reprogramaciones
+    Route::get('ventas/{ventaId}/plan-pago',              [ReprogramacionController::class, 'planPorVenta']);
+    Route::post('planes-pago/{planId}/reprogramar',       [ReprogramacionController::class, 'reprogramar']);
+    Route::post('planes-pago/{planId}/amortizar',         [ReprogramacionController::class, 'amortizar']);
+    Route::get('planes-pago/{planId}/reprogramaciones',   [ReprogramacionController::class, 'historial']);
 
     // Módulo de Contratos
     Route::middleware('permission:acceso_contratos')->group(function () {

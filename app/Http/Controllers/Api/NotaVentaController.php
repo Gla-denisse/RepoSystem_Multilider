@@ -11,6 +11,7 @@ use App\Models\Cuota;
 use App\Models\Pago;
 use App\Models\Contrato;
 use App\Models\Egreso;
+use App\Models\Ingreso;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -65,8 +66,11 @@ class NotaVentaController extends Controller
             'saldo_credito'  => 'required_if:tipo_venta,CREDITO|nullable|numeric|min:0',
             'numero_cuotas'  => 'required_if:tipo_venta,CREDITO|nullable|integer|min:1',
             'tasa_interes'   => 'required_if:tipo_venta,CREDITO|nullable|numeric|min:0',
-            'fecha_inicio_pago' => 'required_if:tipo_venta,CREDITO|nullable|date',
+            'tasa_mora'        => 'nullable|numeric|min:0|max:100',
+            'fecha_inicio_pago'=> 'required_if:tipo_venta,CREDITO|nullable|date',
             'metodo_pago_id'   => 'nullable|exists:metodos_pago,id',
+            'cuenta_id'        => 'nullable|exists:cuentas_bancarias,id',
+            'fecha_pago'       => 'nullable|date',
         ]);
 
         try {
@@ -82,37 +86,58 @@ class NotaVentaController extends Controller
             $montoComision = round($validatedData['monto_total'] * ($asesor->porcentaje_comision / 100), 2);
 
             // 1. Creamos la Nota de Venta
-            $ventaData = collect($validatedData)->except(['numero_cuotas', 'tasa_interes', 'fecha_inicio_pago'])->toArray();
+            $ventaData = collect($validatedData)->except(['numero_cuotas', 'tasa_interes', 'tasa_mora', 'fecha_inicio_pago', 'cuenta_id', 'fecha_pago'])->toArray();
             $ventaData['monto_comision'] = $montoComision;
             $venta = NotaVenta::create($ventaData);
 
             $propiedad->update(['estado' => 'Vendido']);
 
-            // 2. REGISTRAR PAGO COMO PENDIENTE DE PAGO
+            // 2. REGISTRAR PAGO (inmediato si se proporciona cuenta_id + fecha_pago, si no PENDIENTE)
             $metodoPagoId = $validatedData['metodo_pago_id'] ?? null;
+            $cuentaId     = $validatedData['cuenta_id']      ?? null;
+            $fechaPago    = $validatedData['fecha_pago']      ?? null;
+            $pagoInmediato = $metodoPagoId && $cuentaId && $fechaPago;
+
             if ($venta->tipo_venta === 'CONTADO') {
-                Pago::create([
-                    'nota_venta_id'  => $venta->id,
-                    'cuota_id'       => null,
-                    'metodo_pago_id' => $metodoPagoId,
-                    'cuenta_id'      => null,
-                    'concepto_pago'  => 'VENTA_CONTADO',
-                    'fecha_pago'     => null,
-                    'monto'          => $validatedData['monto_liquido'],
-                    'estado'         => 'PENDIENTE_PAGO',
-                    'observaciones'  => 'Pago pendiente de registrar'
-                ]);
-            } elseif ($venta->tipo_venta === 'CREDITO') {
-                Pago::create([
-                    'nota_venta_id'  => $venta->id,
-                    'cuota_id'       => null,
-                    'metodo_pago_id' => $metodoPagoId,
-                    'cuenta_id'      => null,
-                    'concepto_pago'  => 'CUOTA_INICIAL',
-                    'fecha_pago'     => null,
-                    'monto'          => $validatedData['cuota_inicial'],
-                    'estado'         => 'PENDIENTE_PAGO',
-                    'observaciones'  => 'Cuota inicial pendiente de pago'
+                $concepto = 'VENTA_CONTADO';
+                $montoPago = $validatedData['monto_liquido'];
+            } else {
+                $concepto  = 'CUOTA_INICIAL';
+                $montoPago = $validatedData['cuota_inicial'];
+            }
+
+            $pago = Pago::create([
+                'nota_venta_id'  => $venta->id,
+                'cuota_id'       => null,
+                'metodo_pago_id' => $metodoPagoId,
+                'cuenta_id'      => $pagoInmediato ? $cuentaId : null,
+                'concepto_pago'  => $concepto,
+                'fecha_pago'     => $pagoInmediato ? $fechaPago : null,
+                'monto'          => $montoPago,
+                'estado'         => $pagoInmediato ? 'PAGADO' : 'PENDIENTE_PAGO',
+                'observaciones'  => $pagoInmediato
+                    ? 'Pago registrado al momento de la venta'
+                    : ($venta->tipo_venta === 'CONTADO' ? 'Pago pendiente de registrar' : 'Cuota inicial pendiente de pago'),
+            ]);
+
+            // Crear ingreso automático si el pago fue inmediato
+            if ($pagoInmediato) {
+                $monedaMap = ['BOB' => 'Bs', 'USD' => '$'];
+                $moneda    = $monedaMap[$propiedad->moneda] ?? 'Bs';
+                $categoriaMap = ['VENTA_CONTADO' => 'VENTA_CONTADO', 'CUOTA_INICIAL' => 'CUOTA_INICIAL'];
+
+                Ingreso::create([
+                    'fecha'              => $fechaPago,
+                    'concepto'           => 'Pago ' . str_replace('_', ' ', $concepto) . ' - Venta #' . $venta->id,
+                    'categoria'          => $categoriaMap[$concepto],
+                    'monto'              => $montoPago,
+                    'moneda'             => $moneda,
+                    'origen'             => 'AUTOMATICO',
+                    'pago_id'            => $pago->id,
+                    'nota_venta_id'      => $venta->id,
+                    'cuenta_bancaria_id' => $cuentaId,
+                    'user_id'            => \Illuminate\Support\Facades\Auth::id(),
+                    'estado'             => 'CONFIRMADO',
                 ]);
             }
 
@@ -135,7 +160,8 @@ class NotaVentaController extends Controller
                     $validatedData['saldo_credito'],
                     $validatedData['numero_cuotas'],
                     $validatedData['tasa_interes'],
-                    $validatedData['fecha_inicio_pago']
+                    $validatedData['fecha_inicio_pago'],
+                    $validatedData['tasa_mora'] ?? 0
                 );
             }
 
@@ -213,8 +239,8 @@ class NotaVentaController extends Controller
         }
     }
 
-    private function generarPlanDePagos($ventaId, $capitalPrestado, $meses, $tasaAnual, $fechaInicio) {
-        
+    private function generarPlanDePagos($ventaId, $capitalPrestado, $meses, $tasaAnual, $fechaInicio, $tasaMora = 0) {
+
         $fechaFinal = Carbon::parse($fechaInicio)->addMonths($meses - 1); // -1 porque la primera cuota es el mes 1
 
         // 1. Crear la cabecera del Plan
@@ -226,6 +252,7 @@ class NotaVentaController extends Controller
             'fecha_final'   => $fechaFinal,
             'plazo'         => $meses . ' Meses',
             'tasa_interes'  => $tasaAnual,
+            'tasa_mora'     => $tasaMora,
         ]);
 
         // 2. Cálculos Matemáticos

@@ -8,12 +8,16 @@ use App\Models\NotaVenta;
 use App\Models\Cuota;
 use App\Models\Ingreso;
 use App\Models\MiEmpresa;
+use App\Services\MoraService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Mpdf\Mpdf;
 
 class PagoController extends Controller
 {
+    public function __construct(private MoraService $moraService) {}
+
     // 1. Listar pagos con filtros
     public function index(Request $request)
     {
@@ -165,14 +169,15 @@ class PagoController extends Controller
     public function storeBulk(Request $request)
     {
         $validated = $request->validate([
-            'nota_venta_id'  => 'required|exists:notas_ventas,id',
-            'cuotas'         => 'required|array|min:1',
-            'cuotas.*.id'    => 'required|exists:cuotas,id',
-            'cuotas.*.monto' => 'required|numeric|min:0.01',
-            'metodo_pago_id' => 'required|exists:metodos_pago,id',
-            'cuenta_id'      => 'required|exists:cuentas_bancarias,id',
-            'fecha_pago'     => 'required|date',
-            'observaciones'  => 'nullable|string'
+            'nota_venta_id'       => 'required|exists:notas_ventas,id',
+            'cuotas'              => 'required|array|min:1',
+            'cuotas.*.id'         => 'required|exists:cuotas,id',
+            'cuotas.*.monto'      => 'required|numeric|min:0.01',
+            'cuotas.*.mora_monto' => 'nullable|numeric|min:0',
+            'metodo_pago_id'      => 'required|exists:metodos_pago,id',
+            'cuenta_id'           => 'required|exists:cuentas_bancarias,id',
+            'fecha_pago'          => 'required|date',
+            'observaciones'       => 'nullable|string'
         ]);
 
         try {
@@ -203,6 +208,23 @@ class PagoController extends Controller
                 // Ingreso automático por cada cuota cobrada en bulk
                 $pago->load('notaVenta.propiedad');
                 $this->crearIngresoDesde($pago);
+
+                // Registrar mora si fue cobrada
+                $moraMonto = (float) ($item['mora_monto'] ?? 0);
+                if ($moraMonto > 0) {
+                    $cuota->load('planPago');
+                    $this->moraService->registrarMoraPago($cuota, $moraMonto, $validated, Auth::id());
+                }
+            }
+
+            // Actualizar saldo_credito en nota_venta con el capital pendiente real
+            $notaVenta = \App\Models\NotaVenta::findOrFail($validated['nota_venta_id']);
+            $planPago   = $notaVenta->planPago;
+            if ($planPago) {
+                $nuevoSaldo = $planPago->cuotas()
+                    ->whereIn('estado', ['Pendiente', 'Vencida'])
+                    ->sum('monto_capital');
+                $notaVenta->update(['saldo_credito' => round((float) $nuevoSaldo, 2)]);
             }
 
             DB::commit();
@@ -430,6 +452,18 @@ class PagoController extends Controller
             // Ingreso automático al confirmar el pago pendiente
             $pago->load('notaVenta.propiedad');
             $this->crearIngresoDesde($pago);
+
+            // Actualizar saldo_credito si es pago de cuota
+            if ($pago->concepto_pago === 'CUOTA' && $pago->cuota_id) {
+                $notaVenta = \App\Models\NotaVenta::find($pago->nota_venta_id);
+                $planPago   = $notaVenta?->planPago;
+                if ($planPago) {
+                    $nuevoSaldo = $planPago->cuotas()
+                        ->whereIn('estado', ['Pendiente', 'Vencida'])
+                        ->sum('monto_capital');
+                    $notaVenta->update(['saldo_credito' => round((float) $nuevoSaldo, 2)]);
+                }
+            }
 
             DB::commit();
             return response()->json(['message' => 'Pago procesado exitosamente', 'data' => $pago->load('metodoPago', 'cuenta')], 200);
