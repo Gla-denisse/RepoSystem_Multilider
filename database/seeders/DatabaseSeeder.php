@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
         // 1. Ejecutar el seeder de Roles y Permisos primero
         $this->call([
             PermisoSeeder::class,
+            PermisosFinanzasSeeder::class,
             CaracteristicaSeeder::class,
             MiEmpresaSeeder::class,
             MetodoPagoSeeder::class,

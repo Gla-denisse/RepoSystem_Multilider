@@ -27,6 +27,8 @@ use App\Http\Controllers\Api\CuentaBancariaController;
 use App\Http\Controllers\Api\MetodoPagoCuentaDefaultController;
 use App\Http\Controllers\Api\PagoPublicoController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\IngresoController;
+use App\Http\Controllers\Api\EgresoController;
 
 /*
 |--------------------------------------------------------------------------
@@ -129,9 +131,30 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('pagos/{id}/procesar', [PagoController::class, 'procesarPagoPendiente']);
     });
     
-    // Ruta de reportes podría tener un permiso más específico si se desea, 
+    // Ruta de reportes podría tener un permiso más específico si se desea,
     // pero por ahora lo dejamos bajo acceso_pagos o libre para admin
     Route::post('pagos/reportes/periodo', [PagoController::class, 'reportePeriodo'])->middleware('permission:acceso_reportes_pagos');
+
+    // Módulo de Finanzas: Ingresos
+    Route::middleware('permission:acceso_ingresos')->group(function () {
+        Route::get('ingresos', [IngresoController::class, 'index']);
+        Route::post('ingresos', [IngresoController::class, 'store']);
+        Route::get('ingresos/resumen', [IngresoController::class, 'resumen']);
+        Route::get('ingresos/{id}', [IngresoController::class, 'show']);
+        Route::put('ingresos/{id}', [IngresoController::class, 'update']);
+        Route::put('ingresos/{id}/anular', [IngresoController::class, 'anular']);
+    });
+
+    // Módulo de Finanzas: Egresos
+    Route::middleware('permission:acceso_egresos')->group(function () {
+        Route::get('egresos', [EgresoController::class, 'index']);
+        Route::post('egresos', [EgresoController::class, 'store']);
+        Route::get('egresos/resumen', [EgresoController::class, 'resumen']);
+        Route::get('egresos/{id}', [EgresoController::class, 'show']);
+        Route::put('egresos/{id}', [EgresoController::class, 'update']);
+        Route::put('egresos/{id}/pagar', [EgresoController::class, 'pagar']);
+        Route::put('egresos/{id}/anular', [EgresoController::class, 'anular']);
+    });
 
 });
 

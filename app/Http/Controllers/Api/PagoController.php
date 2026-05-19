@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Pago;
 use App\Models\NotaVenta;
 use App\Models\Cuota;
+use App\Models\Ingreso;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -131,6 +132,12 @@ class PagoController extends Controller
                 }
             }
 
+            // Si el pago se crea directamente como PAGADO, generar ingreso automático
+            if ($pago->estado === 'PAGADO') {
+                $pago->load('notaVenta.propiedad');
+                $this->crearIngresoDesde($pago);
+            }
+
             DB::commit();
             return response()->json([
                 'message' => 'Pago registrado con éxito',
@@ -181,6 +188,10 @@ class PagoController extends Controller
 
                 // Actualizar estado de la cuota
                 $cuota->update(['estado' => 'Pagada']);
+
+                // Ingreso automático por cada cuota cobrada en bulk
+                $pago->load('notaVenta.propiedad');
+                $this->crearIngresoDesde($pago);
             }
 
             DB::commit();
@@ -405,6 +416,10 @@ class PagoController extends Controller
                 }
             }
 
+            // Ingreso automático al confirmar el pago pendiente
+            $pago->load('notaVenta.propiedad');
+            $this->crearIngresoDesde($pago);
+
             DB::commit();
             return response()->json(['message' => 'Pago procesado exitosamente', 'data' => $pago->load('metodoPago', 'cuenta')], 200);
 
@@ -412,6 +427,33 @@ class PagoController extends Controller
             DB::rollBack();
             return response()->json(['message' => 'Error al procesar el pago: ' . $e->getMessage()], 500);
         }
+    }
+
+    // Helper: crea un Ingreso automático a partir de un Pago confirmado
+    private function crearIngresoDesde(Pago $pago): void
+    {
+        // Derivar moneda desde la propiedad de la venta
+        $moneda = $pago->notaVenta?->propiedad?->moneda ?? 'Bs';
+
+        $categoriaMap = [
+            'VENTA_CONTADO' => 'VENTA_CONTADO',
+            'CUOTA_INICIAL'  => 'CUOTA_INICIAL',
+            'CUOTA'          => 'CUOTA',
+            'OTRO'           => 'OTRO',
+        ];
+
+        Ingreso::create([
+            'fecha'              => $pago->fecha_pago,
+            'concepto'           => 'Pago ' . str_replace('_', ' ', $pago->concepto_pago) . ' - Venta #' . $pago->nota_venta_id,
+            'categoria'          => $categoriaMap[$pago->concepto_pago] ?? 'OTRO',
+            'monto'              => $pago->monto,
+            'moneda'             => $moneda,
+            'origen'             => 'AUTOMATICO',
+            'pago_id'            => $pago->id,
+            'nota_venta_id'      => $pago->nota_venta_id,
+            'cuenta_bancaria_id' => $pago->cuenta_id,
+            'estado'             => 'CONFIRMADO',
+        ]);
     }
 
     // Listar pagos pendientes

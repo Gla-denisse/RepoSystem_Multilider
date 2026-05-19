@@ -10,6 +10,7 @@ use App\Models\PlanPago;
 use App\Models\Cuota;
 use App\Models\Pago;
 use App\Models\Contrato;
+use App\Models\Egreso;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -136,6 +137,23 @@ class NotaVentaController extends Controller
                 );
             }
 
+            // 5. EGRESO AUTOMÁTICO DE COMISIÓN (estado PENDIENTE hasta que se desembolse)
+            if ($montoComision > 0) {
+                $moneda = $propiedad->moneda ?? 'Bs';
+                Egreso::create([
+                    'fecha'         => $venta->fecha,
+                    'concepto'      => 'Comisión de venta - ' . $asesor->nombre_completo . ' (Venta #' . $venta->id . ')',
+                    'categoria'     => 'COMISION_ASESOR',
+                    'monto'         => $montoComision,
+                    'moneda'        => $moneda,
+                    'origen'        => 'AUTOMATICO',
+                    'nota_venta_id' => $venta->id,
+                    'asesor_id'     => $asesor->id,
+                    'beneficiario'  => $asesor->nombre_completo,
+                    'estado'        => 'PENDIENTE',
+                ]);
+            }
+
             DB::commit();
             return response()->json(['message' => 'Venta registrada con éxito', 'data' => $venta->load('planPago.cuotas', 'pagos')], 201);
 
@@ -176,6 +194,12 @@ class NotaVentaController extends Controller
             // 2. Liberamos la propiedad
             $propiedad = Propiedad::findOrFail($venta->propiedad_id);
             $propiedad->update(['estado' => 'Disponible']);
+
+            // 3. Anulamos el egreso de comisión asociado si está pendiente
+            Egreso::where('nota_venta_id', $venta->id)
+                ->where('categoria', 'COMISION_ASESOR')
+                ->where('estado', 'PENDIENTE')
+                ->update(['estado' => 'ANULADO']);
 
             DB::commit();
             return response()->json(['message' => 'Venta anulada y propiedad liberada correctamente'], 200);
