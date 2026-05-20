@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\EgresoController;
 use App\Http\Controllers\Api\ComisionAsesorController;
 use App\Http\Controllers\Api\ReprogramacionController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\ReporteController;
 
 /*
 |--------------------------------------------------------------------------
@@ -110,6 +111,29 @@ Route::middleware('auth:sanctum')->group(function () {
     // Dashboard
     Route::get('dashboard/admin', [DashboardController::class, 'admin']);
     Route::get('dashboard/asesor', [DashboardController::class, 'asesor']);
+
+    // Reportes
+    Route::prefix('reportes')->group(function () {
+        Route::get('ventas-cobros',       [ReporteController::class, 'ventasCobros']);
+        Route::get('ventas-cobros/excel', [ReporteController::class, 'ventasCobrosExcel']);
+        Route::get('ventas-cobros/pdf',   [ReporteController::class, 'ventasCobrosPdf']);
+
+        Route::get('cartera-mora',        [ReporteController::class, 'carteraMora']);
+        Route::get('cartera-mora/excel',  [ReporteController::class, 'carteraMoraExcel']);
+        Route::get('cartera-mora/pdf',    [ReporteController::class, 'carteraMoraPdf']);
+
+        Route::get('comisiones',          [ReporteController::class, 'comisiones']);
+        Route::get('comisiones/excel',    [ReporteController::class, 'comisionesExcel']);
+        Route::get('comisiones/pdf',      [ReporteController::class, 'comisionesPdf']);
+
+        Route::get('desempeno-asesores',       [ReporteController::class, 'desempenoAsesores']);
+        Route::get('desempeno-asesores/excel', [ReporteController::class, 'desempenoAsesoresExcel']);
+        Route::get('desempeno-asesores/pdf',   [ReporteController::class, 'desempenoAsesoresPdf']);
+
+        Route::get('inventario-propiedades',       [ReporteController::class, 'inventarioPropiedades']);
+        Route::get('inventario-propiedades/excel', [ReporteController::class, 'inventarioPropiedadesExcel']);
+        Route::get('inventario-propiedades/pdf',   [ReporteController::class, 'inventarioPropiedadesPdf']);
+    });
 
     // Perfil del usuario autenticado
     Route::get('/perfil', [ProfileController::class, 'show']);
