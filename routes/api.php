@@ -33,6 +33,7 @@ use App\Http\Controllers\Api\ComisionAsesorController;
 use App\Http\Controllers\Api\ReprogramacionController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ReporteController;
+use App\Http\Controllers\Api\CorreoMasivoController;
 
 /*
 |--------------------------------------------------------------------------
@@ -236,6 +237,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('comisiones-asesores/{asesorId}/impagas', [ComisionAsesorController::class, 'impagas']);
         Route::get('comisiones-asesores/{asesorId}/pagadas', [ComisionAsesorController::class, 'pagadas']);
         Route::get('comisiones-asesores/egreso/{egresoId}/comprobante', [ComisionAsesorController::class, 'comprobante']);
+    });
+
+    // Módulo de Correo Masivo
+    Route::prefix('correo-masivo')->group(function () {
+        Route::get('grupos', [CorreoMasivoController::class, 'grupos']);
+        Route::post('preview-destinatarios', [CorreoMasivoController::class, 'previewDestinatarios']);
+        Route::post('enviar', [CorreoMasivoController::class, 'enviar']);
+        Route::get('historial', [CorreoMasivoController::class, 'historial']);
+        Route::get('estado/{id}', [CorreoMasivoController::class, 'estado']);
     });
 
 });
