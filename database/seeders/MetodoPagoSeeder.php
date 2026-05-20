@@ -12,7 +12,6 @@ class MetodoPagoSeeder extends Seeder
     private array $activos = [
         'Efectivo',
         'Transacción QR',
-        'Pasarela de Pago',
     ];
 
     public function run(): void

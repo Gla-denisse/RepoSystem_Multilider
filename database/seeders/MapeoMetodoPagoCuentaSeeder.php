@@ -21,9 +21,8 @@ class MapeoMetodoPagoCuentaSeeder extends Seeder
 
         // Cada método de pago tiene su cuenta exclusiva
         $mapeos = [
-            'Efectivo'         => 'Caja Principal',
-            'Transacción QR'   => 'Cuenta QR Bancaria',
-            'Pasarela de Pago' => 'Pasarela de Pago',
+            'Efectivo'       => 'Caja Principal',
+            'Transacción QR' => 'Cuenta QR Bancaria',
         ];
 
         foreach ($mapeos as $nombreMetodo => $nombreCuenta) {

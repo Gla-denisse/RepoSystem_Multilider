@@ -20,32 +20,22 @@ class CuentaBancariaSeeder extends Seeder
         $cuentas = [
             // Para método: Efectivo
             [
-                'nombre'      => 'Caja Principal',
-                'tipo'        => 'EFECTIVO',
-                'descripcion' => 'Caja de efectivo principal de la oficina',
+                'nombre'        => 'Caja Principal',
+                'tipo'          => 'EFECTIVO',
+                'descripcion'   => 'Caja de efectivo principal de la oficina',
                 'saldo_inicial' => 0,
-                'estado'      => 'Activa',
+                'estado'        => 'Activa',
             ],
             // Para método: Transacción QR
             [
-                'nombre'         => 'Cuenta QR Bancaria',
-                'tipo'           => 'BANCARIA',
-                'descripcion'    => 'Cuenta bancaria receptora de pagos vía código QR',
-                'banco'          => 'Banco',
-                'numero_cuenta'  => '0000000000',
-                'titular'        => 'Sistema Multilider',
-                'saldo_inicial'  => 0,
-                'estado'         => 'Activa',
-            ],
-            // Para método: Pasarela de Pago
-            [
-                'nombre'             => 'Pasarela de Pago',
-                'tipo'               => 'DIGITAL',
-                'descripcion'        => 'Cuenta de pasarela de pago en línea',
-                'proveedor'          => 'Pasarela',
-                'codigo_integracion' => '',
-                'saldo_inicial'      => 0,
-                'estado'             => 'Activa',
+                'nombre'        => 'Cuenta QR Bancaria',
+                'tipo'          => 'BANCARIA',
+                'descripcion'   => 'Cuenta bancaria receptora de pagos vía código QR',
+                'banco'         => 'Banco',
+                'numero_cuenta' => '0000000000',
+                'titular'       => 'Empresa',
+                'saldo_inicial' => 0,
+                'estado'        => 'Activa',
             ],
         ];
 

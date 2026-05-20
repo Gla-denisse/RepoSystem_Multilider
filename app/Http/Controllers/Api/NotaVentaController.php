@@ -11,7 +11,6 @@ use App\Models\Cuota;
 use App\Models\Pago;
 use App\Models\Contrato;
 use App\Models\Egreso;
-use App\Models\Ingreso;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -92,54 +91,30 @@ class NotaVentaController extends Controller
 
             $propiedad->update(['estado' => 'Vendido']);
 
-            // 2. REGISTRAR PAGO (inmediato si se proporciona cuenta_id + fecha_pago, si no PENDIENTE)
+            // 2. REGISTRAR PAGO - siempre como PENDIENTE_PAGO
             $metodoPagoId = $validatedData['metodo_pago_id'] ?? null;
-            $cuentaId     = $validatedData['cuenta_id']      ?? null;
-            $fechaPago    = $validatedData['fecha_pago']      ?? null;
-            $pagoInmediato = $metodoPagoId && $cuentaId && $fechaPago;
 
             if ($venta->tipo_venta === 'CONTADO') {
-                $concepto = 'VENTA_CONTADO';
+                $concepto  = 'VENTA_CONTADO';
                 $montoPago = $validatedData['monto_liquido'];
             } else {
                 $concepto  = 'CUOTA_INICIAL';
                 $montoPago = $validatedData['cuota_inicial'];
             }
 
-            $pago = Pago::create([
+            Pago::create([
                 'nota_venta_id'  => $venta->id,
                 'cuota_id'       => null,
                 'metodo_pago_id' => $metodoPagoId,
-                'cuenta_id'      => $pagoInmediato ? $cuentaId : null,
+                'cuenta_id'      => null,
                 'concepto_pago'  => $concepto,
-                'fecha_pago'     => $pagoInmediato ? $fechaPago : null,
+                'fecha_pago'     => null,
                 'monto'          => $montoPago,
-                'estado'         => $pagoInmediato ? 'PAGADO' : 'PENDIENTE_PAGO',
-                'observaciones'  => $pagoInmediato
-                    ? 'Pago registrado al momento de la venta'
-                    : ($venta->tipo_venta === 'CONTADO' ? 'Pago pendiente de registrar' : 'Cuota inicial pendiente de pago'),
+                'estado'         => 'PENDIENTE_PAGO',
+                'observaciones'  => $venta->tipo_venta === 'CONTADO'
+                    ? 'Pago contado pendiente de confirmar'
+                    : 'Cuota inicial pendiente de pago',
             ]);
-
-            // Crear ingreso automático si el pago fue inmediato
-            if ($pagoInmediato) {
-                $monedaMap = ['BOB' => 'Bs', 'USD' => '$'];
-                $moneda    = $monedaMap[$propiedad->moneda] ?? 'Bs';
-                $categoriaMap = ['VENTA_CONTADO' => 'VENTA_CONTADO', 'CUOTA_INICIAL' => 'CUOTA_INICIAL'];
-
-                Ingreso::create([
-                    'fecha'              => $fechaPago,
-                    'concepto'           => 'Pago ' . str_replace('_', ' ', $concepto) . ' - Venta #' . $venta->id,
-                    'categoria'          => $categoriaMap[$concepto],
-                    'monto'              => $montoPago,
-                    'moneda'             => $moneda,
-                    'origen'             => 'AUTOMATICO',
-                    'pago_id'            => $pago->id,
-                    'nota_venta_id'      => $venta->id,
-                    'cuenta_bancaria_id' => $cuentaId,
-                    'user_id'            => \Illuminate\Support\Facades\Auth::id(),
-                    'estado'             => 'CONFIRMADO',
-                ]);
-            }
 
             // 3. CREAR CONTRATO AUTOMÁTICAMENTE EN ESTADO PENDIENTE
             $codigoContrato = 'CONT-' . date('Y') . '-' . str_pad($venta->id, 4, '0', STR_PAD_LEFT);
