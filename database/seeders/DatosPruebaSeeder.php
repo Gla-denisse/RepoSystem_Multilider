@@ -163,9 +163,9 @@ class DatosPruebaSeeder extends Seeder
             ]
         );
 
-        $casaWarnes = Propiedad::firstOrCreate(
-            ['codigo' => 'CASA-WAR-001'],
-            [
+        $casaWarnes = Propiedad::where('ubicacion_id', $ubi1->id)->first();
+        if (!$casaWarnes) {
+            $casaWarnes = Propiedad::create([
                 'sector_urbano_id' => $sectorJuanPablo->id,
                 'ubicacion_id' => $ubi1->id,
                 'tipo' => 'Casa',
@@ -178,9 +178,11 @@ class DatosPruebaSeeder extends Seeder
                 'es_esquina' => false,
                 'direccion' => 'Calle Principal Sur',
                 'estado' => 'Disponible',
-                'activo' => true
-            ]
-        );
+                'activo' => true,
+            ]);
+            $casaWarnes->codigo = Propiedad::siguienteCodigo();
+            $casaWarnes->save();
+        }
         $casaWarnes->propietarios()->sync([$propietario1->id]);
         $casaWarnes->caracteristicas()->sync([$cGas->id, $cLavanderia->id, $cTransporte->id]);
 
@@ -194,9 +196,9 @@ class DatosPruebaSeeder extends Seeder
             ]
         );
 
-        $loteMontero = Propiedad::firstOrCreate(
-            ['codigo' => 'LOTE-MON-001'],
-            [
+        $loteMontero = Propiedad::where('ubicacion_id', $ubi2->id)->first();
+        if (!$loteMontero) {
+            $loteMontero = Propiedad::create([
                 'sector_urbano_id' => $sectorVillaEsterita->id,
                 'ubicacion_id' => $ubi2->id,
                 'tipo' => 'Lote',
@@ -213,9 +215,11 @@ class DatosPruebaSeeder extends Seeder
                 'colinda_norte' => 'Lote 2',
                 'colinda_este' => 'Avenida Principal',
                 'estado' => 'Disponible',
-                'activo' => true
-            ]
-        );
+                'activo' => true,
+            ]);
+            $loteMontero->codigo = Propiedad::siguienteCodigo();
+            $loteMontero->save();
+        }
         $loteMontero->propietarios()->sync([$propietario2->id]);
         $loteMontero->caracteristicas()->sync([$cTransporte->id, $cAreasVerdes->id, $cColegio->id]);
 

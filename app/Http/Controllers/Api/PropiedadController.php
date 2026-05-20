@@ -75,8 +75,7 @@ class PropiedadController extends Controller
             return DB::transaction(function () use ($validatedData, $request) {
                 $propiedad = Propiedad::create($validatedData);
 
-                // Asignar código correlativo basado en el ID (sin duplicados posibles)
-                $propiedad->codigo = str_pad($propiedad->id, 4, '0', STR_PAD_LEFT);
+                $propiedad->codigo = Propiedad::siguienteCodigo();
                 $propiedad->save();
 
                 $propiedad->propietarios()->sync($request->propietario_ids);

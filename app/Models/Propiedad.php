@@ -4,10 +4,24 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class Propiedad extends Model
 {
     use HasFactory;
+
+    /**
+     * Devuelve el siguiente código correlativo numérico (ej. "0001", "0002").
+     * Solo considera códigos que sean puramente numéricos para evitar
+     * interferencia con códigos heredados como "CASA-WAR-001".
+     */
+    public static function siguienteCodigo(): string
+    {
+        $max = (int) self::whereRaw("codigo REGEXP '^[0-9]+$'")
+            ->max(DB::raw('CAST(codigo AS UNSIGNED)'));
+
+        return str_pad($max + 1, 4, '0', STR_PAD_LEFT);
+    }
 
     protected $table = 'propiedades';
 
