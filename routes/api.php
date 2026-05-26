@@ -194,6 +194,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('contratos/{id}/gestionar', [ContratoController::class, 'gestionar']);
         Route::put('contratos/{id}/anular', [ContratoController::class, 'anular']);
         Route::get('contratos/{id}/descargar', [ContratoController::class, 'descargar']);
+        Route::get('contratos/{id}/generar-pdf', [ContratoController::class, 'generarPdf']);
     });
 
     // Gestión de Pagos

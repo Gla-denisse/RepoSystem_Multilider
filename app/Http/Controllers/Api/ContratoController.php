@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Contrato;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Mpdf\Mpdf;
 
 class ContratoController extends Controller
 {
@@ -111,5 +112,128 @@ class ContratoController extends Controller
         }
 
         return Storage::disk('public')->download($path, $contrato->codigo_contrato . '.pdf');
+    }
+
+    public function generarPdf($id)
+    {
+        $contrato = Contrato::with([
+            'notaVenta.cliente',
+            'notaVenta.propiedad.propietarios',
+            'notaVenta.propiedad.sectorUrbano.distrito.ciudad',
+        ])->findOrFail($id);
+
+        $nv          = $contrato->notaVenta;
+        $cliente     = $nv->cliente;
+        $propiedad   = $nv->propiedad;
+        $propietarios = $propiedad->propietarios ?? collect();
+        $sector      = $propiedad->sectorUrbano;
+        $distrito    = $sector?->distrito;
+        $ciudad      = $distrito?->ciudad;
+
+        $monto       = floatval($nv->monto_liquido ?? $nv->monto_total ?? 0);
+        $montoLiteral = $this->numeroALetras($monto);
+
+        $html = view('contratos.plantilla', compact(
+            'contrato', 'nv', 'cliente', 'propiedad',
+            'propietarios', 'sector', 'distrito', 'ciudad',
+            'montoLiteral'
+        ))->render();
+
+        $mpdf = new Mpdf([
+            'mode'        => 'utf-8',
+            'format'      => 'A4',
+            'margin_top'  => 15,
+            'margin_bottom' => 15,
+            'margin_left' => 20,
+            'margin_right' => 20,
+        ]);
+
+        $mpdf->SetTitle('Contrato ' . $contrato->codigo_contrato);
+        $mpdf->WriteHTML($html);
+
+        $pdfContent = $mpdf->Output('', 'S');
+        $filename   = $contrato->codigo_contrato . '_contrato.pdf';
+
+        return response($pdfContent, 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Length'      => strlen($pdfContent),
+        ]);
+    }
+
+    // ---------------------------------------------------------------
+    // Helpers de conversión numérica a letras (español)
+    // ---------------------------------------------------------------
+
+    private function numeroALetras(float $numero): string
+    {
+        $entero    = (int) abs($numero);
+        $decimales = (int) round((abs($numero) - $entero) * 100);
+
+        $texto = $this->enteroALetras($entero);
+        if ($decimales > 0) {
+            $texto .= ' CON ' . sprintf('%02d', $decimales) . '/100';
+        }
+
+        return strtoupper(trim($texto));
+    }
+
+    private function enteroALetras(int $n): string
+    {
+        if ($n === 0) return 'CERO';
+
+        $unidades = [
+            '', 'UN', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE',
+            'DIEZ', 'ONCE', 'DOCE', 'TRECE', 'CATORCE', 'QUINCE', 'DIECISÉIS',
+            'DIECISIETE', 'DIECIOCHO', 'DIECINUEVE',
+        ];
+        $veintis = [
+            '', 'VEINTIÚN', 'VEINTIDÓS', 'VEINTITRÉS', 'VEINTICUATRO', 'VEINTICINCO',
+            'VEINTISÉIS', 'VEINTISIETE', 'VEINTIOCHO', 'VEINTINUEVE',
+        ];
+        $decenas  = ['', '', 'VEINTE', 'TREINTA', 'CUARENTA', 'CINCUENTA', 'SESENTA', 'SETENTA', 'OCHENTA', 'NOVENTA'];
+        $centenas = [
+            '', 'CIEN', 'DOSCIENTOS', 'TRESCIENTOS', 'CUATROCIENTOS', 'QUINIENTOS',
+            'SEISCIENTOS', 'SETECIENTOS', 'OCHOCIENTOS', 'NOVECIENTOS',
+        ];
+
+        $resultado = '';
+
+        if ($n >= 1000000) {
+            $millones  = intdiv($n, 1000000);
+            $resultado .= ($millones === 1 ? 'UN MILLÓN' : $this->enteroALetras($millones) . ' MILLONES');
+            $n         %= 1000000;
+            if ($n > 0) $resultado .= ' ';
+        }
+
+        if ($n >= 1000) {
+            $miles     = intdiv($n, 1000);
+            $resultado .= ($miles === 1 ? 'MIL' : $this->enteroALetras($miles) . ' MIL');
+            $n         %= 1000;
+            if ($n > 0) $resultado .= ' ';
+        }
+
+        if ($n >= 100) {
+            $c    = intdiv($n, 100);
+            $rest = $n % 100;
+            $resultado .= ($c === 1 && $rest > 0) ? 'CIENTO' : $centenas[$c];
+            $n    = $rest;
+            if ($n > 0) $resultado .= ' ';
+        }
+
+        if ($n > 0) {
+            if ($n < 20) {
+                $resultado .= $unidades[$n];
+            } elseif ($n < 30) {
+                $resultado .= ($n === 20) ? 'VEINTE' : $veintis[$n - 20];
+            } else {
+                $dec = intdiv($n, 10);
+                $uni = $n % 10;
+                $resultado .= $decenas[$dec];
+                if ($uni > 0) $resultado .= ' Y ' . $unidades[$uni];
+            }
+        }
+
+        return $resultado;
     }
 }
