@@ -25,4 +25,9 @@ class Contrato extends Model
     {
         return $this->belongsTo(NotaVenta::class, 'nota_venta_id');
     }
+
+    public function entrega()
+    {
+        return $this->hasOne(Entrega::class, 'contrato_id');
+    }
 }

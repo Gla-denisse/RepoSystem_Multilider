@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             PermisoSeeder::class,
             PermisoCorreoMasivoSeeder::class,
             PermisosFinanzasSeeder::class,
+            PermisoEntregaSeeder::class,
             CaracteristicaSeeder::class,
             MiEmpresaSeeder::class,
             MetodoPagoSeeder::class,

@@ -15,8 +15,11 @@ use App\Exports\ReporteDesempenoAsesoresExport;
 use App\Exports\ReporteInventarioPropiedadesExport;
 use App\Models\Propiedad;
 use App\Models\Egreso;
+use App\Mail\InformeReporte;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Maatwebsite\Excel\Facades\Excel;
 use Mpdf\Mpdf;
 
@@ -1421,5 +1424,148 @@ table.main td{padding:4px 7px;font-size:9px;border-bottom:1px solid #eee;}
 </table>
 <div class="footer">Generado el: ' . $generado . ' &nbsp;|&nbsp; Total: ' . count($rows) . ' propiedades</div>
 </body></html>';
+    }
+
+    // ─── Envío de informe por correo ────────────────────────────────────────
+
+    public function enviarInforme(Request $request)
+    {
+        $request->validate([
+            'reporte'     => 'required|string|in:ventas-cobros,cartera-mora,comisiones,desempeno-asesores,inventario-propiedades',
+            'asesor_ids'  => 'required|array|min:1',
+            'asesor_ids.*'=> 'integer|exists:asesores,id',
+        ]);
+
+        $asesores = Asesor::whereIn('id', $request->asesor_ids)
+            ->whereNotNull('correo')
+            ->where('correo', '!=', '')
+            ->get();
+
+        if ($asesores->isEmpty()) {
+            return response()->json([
+                'message' => 'Ningún asesor seleccionado tiene correo registrado.',
+            ], 422);
+        }
+
+        $nombreReporte = match($request->reporte) {
+            'ventas-cobros'          => 'Ventas y Cobros',
+            'cartera-mora'           => 'Cartera en Mora',
+            'comisiones'             => 'Comisiones',
+            'desempeno-asesores'     => 'Desempeño de Asesores',
+            'inventario-propiedades' => 'Inventario de Propiedades',
+        };
+
+        // Merge the nested 'params' object (sent by the frontend) into the request
+        // so that generarPdfBinario can read filters with $request->input('desde') etc.
+        if (is_array($request->input('params'))) {
+            $request->merge($request->input('params'));
+        }
+
+        try {
+            [$pdfBinario, $nombreArchivo] = $this->generarPdfBinario($request->reporte, $request);
+        } catch (\Throwable $e) {
+            Log::error('Error generando PDF para informe: ' . $e->getMessage());
+            return response()->json(['message' => 'No se pudo generar el PDF del informe.'], 500);
+        }
+
+        $enviados = 0;
+        $fallidos = 0;
+
+        foreach ($asesores as $asesor) {
+            try {
+                Mail::to($asesor->correo)
+                    ->send(new InformeReporte(
+                        $asesor->nombre_completo,
+                        $nombreReporte,
+                        $pdfBinario,
+                        $nombreArchivo,
+                    ));
+                $enviados++;
+            } catch (\Throwable $e) {
+                $fallidos++;
+                Log::error("Error enviando informe a {$asesor->correo}: " . $e->getMessage());
+            }
+        }
+
+        $msg = "Informe enviado: {$enviados} correo(s) exitoso(s)";
+        if ($fallidos > 0) $msg .= ", {$fallidos} fallido(s).";
+
+        return response()->json([
+            'message'  => $msg,
+            'enviados' => $enviados,
+            'fallidos' => $fallidos,
+        ]);
+    }
+
+    private function generarPdfBinario(string $reporte, Request $request): array
+    {
+        $empresa = MiEmpresa::first();
+
+        switch ($reporte) {
+            case 'ventas-cobros': {
+                [$desde, $hasta] = $this->rangoFechas($request);
+                $kpis  = $this->kpisVentas($request, $desde, $hasta);
+                $notas = $this->notasConEager($this->baseVentasQuery($request, $desde, $hasta))
+                    ->orderBy('fecha', 'desc')->get();
+                $rows  = $this->notasARows($notas);
+                $html  = $this->buildPdfHtml($kpis, $rows, $desde, $hasta, $empresa);
+                $mpdf  = new Mpdf(['margin_top'=>12,'margin_bottom'=>12,'margin_left'=>8,'margin_right'=>8,'format'=>'A4-L']);
+                $mpdf->WriteHTML($html);
+                return [$mpdf->Output('', 'S'), "ventas-cobros-{$desde}-al-{$hasta}.pdf"];
+            }
+            case 'cartera-mora': {
+                $asesorId  = $request->input('asesor_id');
+                $notasBase = NotaVenta::where('tipo_venta', 'Crédito')->where('estado', 'Activa');
+                if ($asesorId) $notasBase->where('asesor_id', $asesorId);
+                $todasVencidas = $this->eagerCuotas($this->baseCuotasVencidas($request))->get();
+                $rows  = $this->cuotasARows($todasVencidas);
+                $aging = $this->calcularAging($todasVencidas);
+                $kpis  = [
+                    'cartera_total'         => (float) (clone $notasBase)->sum('saldo_credito'),
+                    'monto_vencido'         => array_sum(array_column($aging, 'monto')),
+                    'clientes_en_mora'      => count(array_unique(array_filter(array_column($rows, 'cliente_id')))),
+                    'cuotas_vencidas_count' => count($rows),
+                ];
+                $html  = $this->buildCarteraMoraPdfHtml($kpis, $aging, $rows, $empresa);
+                $mpdf  = new Mpdf(['margin_top'=>12,'margin_bottom'=>12,'margin_left'=>8,'margin_right'=>8,'format'=>'A4-L']);
+                $mpdf->WriteHTML($html);
+                $fecha = now()->toDateString();
+                return [$mpdf->Output('', 'S'), "cartera-mora-{$fecha}.pdf"];
+            }
+            case 'comisiones': {
+                [$base, $desde, $hasta] = $this->baseComisionesQuery($request);
+                $kpis    = $this->kpisComisiones($base);
+                $egresos = $this->eagerEgresos(clone $base)->orderByDesc('fecha')->get();
+                $rows    = $this->egresosARows($egresos);
+                $html    = $this->buildComisionesPdfHtml($kpis, $rows, $desde, $hasta, $empresa);
+                $mpdf    = new Mpdf(['margin_top'=>12,'margin_bottom'=>12,'margin_left'=>10,'margin_right'=>10,'format'=>'A4-L']);
+                $mpdf->WriteHTML($html);
+                return [$mpdf->Output('', 'S'), "comisiones-{$desde}-al-{$hasta}.pdf"];
+            }
+            case 'desempeno-asesores': {
+                [$desde, $hasta] = $this->rangoDesempeno($request);
+                $asesorId = $request->filled('asesor_id') ? (int) $request->asesor_id : null;
+                $ranking  = $this->buildRankingAsesores($desde, $hasta, $asesorId);
+                $kpis     = $this->kpisDesempeno($ranking);
+                $html     = $this->buildDesempenoPdfHtml($kpis, $ranking, $desde, $hasta, $empresa);
+                $mpdf     = new Mpdf(['margin_top'=>12,'margin_bottom'=>12,'margin_left'=>10,'margin_right'=>10,'format'=>'A4-L']);
+                $mpdf->WriteHTML($html);
+                return [$mpdf->Output('', 'S'), "desempeno-asesores-{$desde}-al-{$hasta}.pdf"];
+            }
+            case 'inventario-propiedades': {
+                $kpis = $this->kpisInventario($request);
+                $rows = $this->baseInventarioQuery($request)
+                    ->orderByRaw("FIELD(estado,'Disponible','Reservado','Vendido')")
+                    ->orderBy('tipo')->orderBy('codigo')
+                    ->get()->map(fn($p) => $this->mapearPropiedad($p))->toArray();
+                $html = $this->buildInventarioPdfHtml($rows, $kpis, $empresa);
+                $mpdf = new Mpdf(['orientation'=>'L','margin_top'=>10,'margin_bottom'=>10]);
+                $mpdf->WriteHTML($html);
+                $fecha = now()->format('Ymd');
+                return [$mpdf->Output('', 'S'), "inventario-propiedades-{$fecha}.pdf"];
+            }
+        }
+
+        throw new \InvalidArgumentException("Reporte '{$reporte}' no reconocido.");
     }
 }

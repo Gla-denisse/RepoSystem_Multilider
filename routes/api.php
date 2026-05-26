@@ -34,6 +34,7 @@ use App\Http\Controllers\Api\ReprogramacionController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ReporteController;
 use App\Http\Controllers\Api\CorreoMasivoController;
+use App\Http\Controllers\Api\EntregaController;
 
 /*
 |--------------------------------------------------------------------------
@@ -135,6 +136,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('inventario-propiedades',       [ReporteController::class, 'inventarioPropiedades']);
         Route::get('inventario-propiedades/excel', [ReporteController::class, 'inventarioPropiedadesExcel']);
         Route::get('inventario-propiedades/pdf',   [ReporteController::class, 'inventarioPropiedadesPdf']);
+
+        Route::post('enviar-informe', [ReporteController::class, 'enviarInforme']);
     });
 
     // Perfil del usuario autenticado
@@ -195,6 +198,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('contratos/{id}/anular', [ContratoController::class, 'anular']);
         Route::get('contratos/{id}/descargar', [ContratoController::class, 'descargar']);
         Route::get('contratos/{id}/generar-pdf', [ContratoController::class, 'generarPdf']);
+    });
+
+    // Módulo de Entregas
+    Route::middleware('permission:acceso_entregas')->group(function () {
+        Route::get('entregas', [EntregaController::class, 'index']);
+        Route::put('entregas/{id}', [EntregaController::class, 'update']);
+        Route::post('entregas/{id}/subir-acta', [EntregaController::class, 'subirActa']);
+        Route::get('entregas/{id}/descargar-acta', [EntregaController::class, 'descargarActa']);
     });
 
     // Gestión de Pagos

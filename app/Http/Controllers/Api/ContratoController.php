@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Contrato;
+use App\Models\Entrega;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Mpdf\Mpdf;
@@ -15,6 +16,7 @@ class ContratoController extends Controller
         $query = Contrato::with([
             'notaVenta.cliente',
             'notaVenta.propiedad.sectorUrbano.distrito.ciudad',
+            'entrega',
         ]);
 
         if ($request->filled('estado') && $request->estado !== 'TODOS') {
@@ -45,9 +47,10 @@ class ContratoController extends Controller
     public function gestionar(Request $request, $id)
     {
         $request->validate([
-            'archivo'     => 'nullable|file|mimes:pdf|max:10240',
-            'firmado'     => 'nullable',
-            'fecha_firma' => 'nullable|date',
+            'archivo'                  => 'nullable|file|mimes:pdf|max:10240',
+            'firmado'                  => 'nullable',
+            'fecha_firma'              => 'nullable|date',
+            'fecha_programada_entrega' => 'nullable|date',
         ]);
 
         $contrato = Contrato::findOrFail($id);
@@ -68,19 +71,36 @@ class ContratoController extends Controller
 
         $firmado = filter_var($request->input('firmado', false), FILTER_VALIDATE_BOOLEAN);
 
+        $eraFirmado = $contrato->estado === 'Firmado';
+
         if ($firmado) {
             $contrato->estado = 'Firmado';
             $contrato->fecha_firma = $request->fecha_firma ?? now()->toDateString();
-        } elseif ($contrato->estado === 'Firmado') {
+        } elseif ($eraFirmado) {
             $contrato->estado = 'Pendiente';
             $contrato->fecha_firma = null;
         }
 
         $contrato->save();
 
+        // Crear o actualizar entrega cuando el contrato está firmado
+        if ($firmado) {
+            $fechaProgramada = $request->input('fecha_programada_entrega') ?? $contrato->fecha_firma ?? now()->toDateString();
+            $entrega = Entrega::where('contrato_id', $contrato->id)->first();
+            if (!$entrega) {
+                Entrega::create([
+                    'contrato_id'      => $contrato->id,
+                    'fecha_programada' => $fechaProgramada,
+                    'estado'           => 'Pendiente',
+                ]);
+            } elseif ($request->filled('fecha_programada_entrega')) {
+                $entrega->update(['fecha_programada' => $fechaProgramada]);
+            }
+        }
+
         return response()->json([
             'message' => 'Contrato actualizado correctamente.',
-            'data'    => $contrato->load('notaVenta.cliente', 'notaVenta.propiedad'),
+            'data'    => $contrato->load('notaVenta.cliente', 'notaVenta.propiedad', 'entrega'),
         ], 200);
     }
 
