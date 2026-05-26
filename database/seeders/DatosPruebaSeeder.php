@@ -223,55 +223,5 @@ class DatosPruebaSeeder extends Seeder
         $loteMontero->propietarios()->sync([$propietario2->id]);
         $loteMontero->caracteristicas()->sync([$cTransporte->id, $cAreasVerdes->id, $cColegio->id]);
 
-        // ==========================================
-        // 6. POBLAR IMÁGENES (Vincular con el servidor)
-        // ==========================================
-        $this->crearImagenesPrueba($casaWarnes);
-        $this->crearImagenesPrueba($loteMontero);
-    }
-
-    /**
-     * Crea imágenes de prueba descargándolas de un servicio placeholder
-     * y guardándolas en el storage del servidor.
-     */
-    private function crearImagenesPrueba(Propiedad $propiedad, $cantidad = 3)
-    {
-        // Solo crear si la propiedad no tiene imágenes
-        if ($propiedad->imagenes()->count() > 0) {
-            return;
-        }
-
-        $folder = "propiedades/{$propiedad->id}";
-        
-        // Asegurar que el directorio existe
-        if (!Storage::disk('public')->exists($folder)) {
-            Storage::disk('public')->makeDirectory($folder);
-        }
-
-        for ($i = 0; $i < $cantidad; $i++) {
-            try {
-                // Descargar una imagen aleatoria (casa o terreno según el tipo)
-                $keywords = $propiedad->tipo === 'Casa' ? 'house,architecture' : 'land,field';
-                $imageUrl = "https://loremflickr.com/800/600/{$keywords}?lock=" . ($propiedad->id + $i);
-                
-                $imageContent = file_get_contents($imageUrl);
-                
-                if ($imageContent) {
-                    $fileName = Str::random(40) . '.jpg';
-                    $path = "{$folder}/{$fileName}";
-                    
-                    Storage::disk('public')->put($path, $imageContent);
-
-                    ImagenPropiedad::create([
-                        'propiedad_id' => $propiedad->id,
-                        'url' => $path,
-                        'es_principal' => ($i === 0) // La primera es la principal
-                    ]);
-                }
-            } catch (\Exception $e) {
-                // Si falla la descarga (ej. sin internet), ignorar
-                logger()->error("Error al descargar imagen para propiedad {$propiedad->id}: " . $e->getMessage());
-            }
-        }
     }
 }
