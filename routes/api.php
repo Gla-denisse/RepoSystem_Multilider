@@ -108,6 +108,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Rutas de Autenticación
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+    Route::get('/mi-cartera', [ClienteController::class, 'miCartera']);
 
     // Dashboard
     Route::get('dashboard/admin', [DashboardController::class, 'admin']);

@@ -7,6 +7,7 @@ use App\Models\Cliente;
 use App\Models\User;
 use App\Models\Rol;
 use App\Models\RolPermiso;
+use App\Models\NotaVenta;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -145,5 +146,28 @@ class ClienteController extends Controller
 
         $mensaje = $cliente->estado ? 'Cliente y cuenta activados' : 'Cliente y cuenta suspendidos';
         return response()->json(['message' => $mensaje, 'estado' => $cliente->estado], 200);
+    }
+
+    // Portal del cliente: devuelve su cartera de créditos
+    public function miCartera(Request $request)
+    {
+        $user = $request->user();
+
+        $cliente = Cliente::where('user_id', $user->id)->firstOrFail();
+
+        $ventas = NotaVenta::where('cliente_id', $cliente->id)
+            ->where('estado', 'Completada')
+            ->with([
+                'propiedad.sectorUrbano.distrito.ciudad',
+                'planPago.cuotas' => fn($q) => $q->orderBy('numero_cuota'),
+                'pagos'           => fn($q) => $q->where('estado', 'PAGADO')->orderBy('fecha_pago'),
+            ])
+            ->orderBy('fecha', 'desc')
+            ->get();
+
+        return response()->json([
+            'cliente' => $cliente,
+            'ventas'  => $ventas,
+        ], 200);
     }
 }

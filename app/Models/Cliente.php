@@ -27,4 +27,9 @@ class Cliente extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+
+    public function notasVentas()
+    {
+        return $this->hasMany(NotaVenta::class, 'cliente_id');
+    }
 }
