@@ -27,6 +27,15 @@ class ReporteController extends Controller
 {
     // ─── Helpers compartidos ────────────────────────────────────────────────
 
+    private function makeMpdf(array $config = []): Mpdf
+    {
+        $tmpDir = storage_path('app/mpdf-tmp');
+        if (!is_dir($tmpDir)) {
+            mkdir($tmpDir, 0775, true);
+        }
+        return new Mpdf(array_merge(['tempDir' => $tmpDir], $config));
+    }
+
     private function rangoFechas(Request $request): array
     {
         $desde = $request->input('desde', now()->startOfMonth()->toDateString());
@@ -174,7 +183,7 @@ class ReporteController extends Controller
         $rows    = $this->notasARows($notas);
         $html    = $this->buildPdfHtml($kpis, $rows, $desde, $hasta, $empresa);
 
-        $mpdf = new Mpdf([
+        $mpdf = $this->makeMpdf([
             'margin_top'    => 12,
             'margin_bottom' => 12,
             'margin_left'   => 8,
@@ -482,7 +491,7 @@ table.main td{padding:4px 7px;font-size:9px;border-bottom:1px solid #eee;}
         $empresa = MiEmpresa::first();
         $html    = $this->buildCarteraMoraPdfHtml($kpis, $aging, $rows, $empresa);
 
-        $mpdf = new Mpdf([
+        $mpdf = $this->makeMpdf([
             'margin_top'    => 12,
             'margin_bottom' => 12,
             'margin_left'   => 10,
@@ -761,7 +770,7 @@ table.aging td,table.detail td{padding:4px 7px;font-size:9px;border-bottom:1px s
         $empresa = MiEmpresa::first();
         $html    = $this->buildComisionesPdfHtml($kpis, $rows, $desde, $hasta, $empresa);
 
-        $mpdf = new Mpdf([
+        $mpdf = $this->makeMpdf([
             'margin_top'    => 12,
             'margin_bottom' => 12,
             'margin_left'   => 10,
@@ -1045,7 +1054,7 @@ table.main td{padding:4px 7px;font-size:9px;border-bottom:1px solid #eee;}
         $empresa = MiEmpresa::first();
         $html    = $this->buildDesempenoPdfHtml($kpis, $ranking, $desde, $hasta, $empresa);
 
-        $mpdf = new Mpdf([
+        $mpdf = $this->makeMpdf([
             'margin_top' => 12, 'margin_bottom' => 12,
             'margin_left' => 10, 'margin_right' => 10,
             'format' => 'A4-L',
@@ -1334,7 +1343,7 @@ table.main td{padding:4px 7px;font-size:9px;border-bottom:1px solid #eee;}
         $empresa  = MiEmpresa::first();
         $html     = $this->buildInventarioPdfHtml($rows, $kpis, $empresa);
 
-        $mpdf = new Mpdf(['orientation' => 'L', 'margin_top' => 10, 'margin_bottom' => 10]);
+        $mpdf = $this->makeMpdf(['orientation' => 'L', 'margin_top' => 10, 'margin_bottom' => 10]);
         $mpdf->WriteHTML($html);
 
         return response($mpdf->Output('inventario.pdf', 'S'), 200, [
@@ -1509,7 +1518,7 @@ table.main td{padding:4px 7px;font-size:9px;border-bottom:1px solid #eee;}
                     ->orderBy('fecha', 'desc')->get();
                 $rows  = $this->notasARows($notas);
                 $html  = $this->buildPdfHtml($kpis, $rows, $desde, $hasta, $empresa);
-                $mpdf  = new Mpdf(['margin_top'=>12,'margin_bottom'=>12,'margin_left'=>8,'margin_right'=>8,'format'=>'A4-L']);
+                $mpdf  = $this->makeMpdf(['margin_top'=>12,'margin_bottom'=>12,'margin_left'=>8,'margin_right'=>8,'format'=>'A4-L']);
                 $mpdf->WriteHTML($html);
                 return [$mpdf->Output('', 'S'), "ventas-cobros-{$desde}-al-{$hasta}.pdf"];
             }
@@ -1527,7 +1536,7 @@ table.main td{padding:4px 7px;font-size:9px;border-bottom:1px solid #eee;}
                     'cuotas_vencidas_count' => count($rows),
                 ];
                 $html  = $this->buildCarteraMoraPdfHtml($kpis, $aging, $rows, $empresa);
-                $mpdf  = new Mpdf(['margin_top'=>12,'margin_bottom'=>12,'margin_left'=>8,'margin_right'=>8,'format'=>'A4-L']);
+                $mpdf  = $this->makeMpdf(['margin_top'=>12,'margin_bottom'=>12,'margin_left'=>8,'margin_right'=>8,'format'=>'A4-L']);
                 $mpdf->WriteHTML($html);
                 $fecha = now()->toDateString();
                 return [$mpdf->Output('', 'S'), "cartera-mora-{$fecha}.pdf"];
@@ -1538,7 +1547,7 @@ table.main td{padding:4px 7px;font-size:9px;border-bottom:1px solid #eee;}
                 $egresos = $this->eagerEgresos(clone $base)->orderByDesc('fecha')->get();
                 $rows    = $this->egresosARows($egresos);
                 $html    = $this->buildComisionesPdfHtml($kpis, $rows, $desde, $hasta, $empresa);
-                $mpdf    = new Mpdf(['margin_top'=>12,'margin_bottom'=>12,'margin_left'=>10,'margin_right'=>10,'format'=>'A4-L']);
+                $mpdf    = $this->makeMpdf(['margin_top'=>12,'margin_bottom'=>12,'margin_left'=>10,'margin_right'=>10,'format'=>'A4-L']);
                 $mpdf->WriteHTML($html);
                 return [$mpdf->Output('', 'S'), "comisiones-{$desde}-al-{$hasta}.pdf"];
             }
@@ -1548,7 +1557,7 @@ table.main td{padding:4px 7px;font-size:9px;border-bottom:1px solid #eee;}
                 $ranking  = $this->buildRankingAsesores($desde, $hasta, $asesorId);
                 $kpis     = $this->kpisDesempeno($ranking);
                 $html     = $this->buildDesempenoPdfHtml($kpis, $ranking, $desde, $hasta, $empresa);
-                $mpdf     = new Mpdf(['margin_top'=>12,'margin_bottom'=>12,'margin_left'=>10,'margin_right'=>10,'format'=>'A4-L']);
+                $mpdf     = $this->makeMpdf(['margin_top'=>12,'margin_bottom'=>12,'margin_left'=>10,'margin_right'=>10,'format'=>'A4-L']);
                 $mpdf->WriteHTML($html);
                 return [$mpdf->Output('', 'S'), "desempeno-asesores-{$desde}-al-{$hasta}.pdf"];
             }
@@ -1559,7 +1568,7 @@ table.main td{padding:4px 7px;font-size:9px;border-bottom:1px solid #eee;}
                     ->orderBy('tipo')->orderBy('codigo')
                     ->get()->map(fn($p) => $this->mapearPropiedad($p))->toArray();
                 $html = $this->buildInventarioPdfHtml($rows, $kpis, $empresa);
-                $mpdf = new Mpdf(['orientation'=>'L','margin_top'=>10,'margin_bottom'=>10]);
+                $mpdf = $this->makeMpdf(['orientation'=>'L','margin_top'=>10,'margin_bottom'=>10]);
                 $mpdf->WriteHTML($html);
                 $fecha = now()->format('Ymd');
                 return [$mpdf->Output('', 'S'), "inventario-propiedades-{$fecha}.pdf"];

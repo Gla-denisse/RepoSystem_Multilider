@@ -159,13 +159,13 @@ class ContratoController extends Controller
             'montoLiteral'
         ))->render();
 
-        $mpdf = new Mpdf([
-            'mode'        => 'utf-8',
-            'format'      => 'A4',
-            'margin_top'  => 15,
+        $mpdf = $this->makeMpdf([
+            'mode'          => 'utf-8',
+            'format'        => 'A4',
+            'margin_top'    => 15,
             'margin_bottom' => 15,
-            'margin_left' => 20,
-            'margin_right' => 20,
+            'margin_left'   => 20,
+            'margin_right'  => 20,
         ]);
 
         $mpdf->SetTitle('Contrato ' . $contrato->codigo_contrato);
@@ -182,6 +182,15 @@ class ContratoController extends Controller
     }
 
     // ---------------------------------------------------------------
+    private function makeMpdf(array $config = []): \Mpdf\Mpdf
+    {
+        $tmpDir = storage_path('app/mpdf-tmp');
+        if (!is_dir($tmpDir)) {
+            mkdir($tmpDir, 0775, true);
+        }
+        return new \Mpdf\Mpdf(array_merge(['tempDir' => $tmpDir], $config));
+    }
+
     // Helpers de conversión numérica a letras (español)
     // ---------------------------------------------------------------
 
