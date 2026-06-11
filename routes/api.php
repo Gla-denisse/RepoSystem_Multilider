@@ -47,6 +47,7 @@ use App\Http\Controllers\Api\EntregaController;
 |
 */
 
+
 // Rutas Públicas (Landing Page + Portal de Pagos)
 Route::prefix('public')->group(function () {
     Route::post('clientes/buscar',           [PagoPublicoController::class, 'buscarCliente']);
@@ -66,7 +67,7 @@ Route::get('/landing/sectores-urbanos/{distritoId}', [LandingController::class, 
 
 Route::post('/login', [AuthController::class, 'login']);
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware('auth:jwt')->group(function () {
 
     // Utilidad: resolver URL acortada de Google Maps
     Route::get('/resolver-url-mapa', function (Illuminate\Http\Request $request) {
